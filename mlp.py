@@ -14,7 +14,6 @@ class MLP(object):
         self.hidden_layer = hidden_layer
         self.nlayers = len(hidden_layer) + 1 # hidden layers + output layer
         
-
         # Init hidden layers weights and bias
         self.weights, self.biases = [], []
         prev_dim = input_layer
@@ -44,6 +43,20 @@ class MLP(object):
             y_encoded.append(np.zeros(nlabels))
             y_encoded[-1][yi] = 1
         return np.asarray(y_encoded)
+    
+    def cross_entropy_loss(self, y_hat, y):
+        """Computes the cross-entropy loss between predicted probabilities and true labels.
+
+            Args:
+                y_hat (ndarray): Predicted probabilities from the forward pass.
+                y (ndarray): The true target labels for each training sample.
+
+            Returns:
+                float: The cross-entropy loss averaged across all samples.
+        """
+        epsilon = 1e-8
+        loss = -np.mean(np.sum(y * np.log(y_hat + epsilon), axis=1)) # Add epsilon for stability
+        return loss
 
     def forward(self, X):
         """Performs the forward pass through the network.
@@ -81,7 +94,7 @@ class MLP(object):
         Computing the gradients of the loss w.r.t. the model parameters, and updates the weights and biases.
 
         Args:
-            y_hat (ndarray): The predicted output from the forward pass.
+            y_hat (ndarray): Predicted probabilities from the forward pass.
             y (ndarray): The true target labels for each training sample.
         """
 
@@ -133,7 +146,7 @@ class MLP(object):
             y_hat = self.forward(X)
 
             # Calculate error in prediction using Cross-Entropy Loss function
-            loss = np.mean(np.sum(-np.log(y_hat) * y, axis=1))
+            loss = self.cross_entropy_loss(y_hat, y)
             
             # Backpropagation Pass: Calculate Gradients, Weights & Bias
             self.backward(y_hat, y)
