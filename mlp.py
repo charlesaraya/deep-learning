@@ -150,3 +150,53 @@ class MLP(object):
             'training_accuracies': training_accuracies,
             'training_losses': training_losses
         }
+
+if __name__ == '__main__':
+    import pandas as pd
+
+    # Data Prep
+    df = pd.read_csv('data/Iris/iris.csv', header=None)
+    df[5] = pd.Categorical(df[4]).codes
+    # Sample test and train data
+    test_ratio = 0.2
+    test_data = df.sample(frac=test_ratio, random_state=8000)
+    train_data = df.drop(test_data.index)
+    # Train Dataset
+    x_inputs_train = train_data.iloc[:, 0:4].values
+    y_target_output_train = np.array(train_data[5])
+    train_data = (x_inputs_train, y_target_output_train)
+    # Test Dataset
+    x_inputs_test = test_data.iloc[:,0:4].values
+    y_target_output_test = np.array(test_data[5])
+    test_data = (x_inputs_test, y_target_output_test)
+
+    # Hyperparameters
+    input_layer = 4
+    hidden_layer = [128]
+    output_layer = 3
+    learning_rate = 0.01
+    epochs = 2000
+
+    # NN Setup
+    p = MLP(input_layer, hidden_layer, output_layer)
+
+    # Training
+    output = p.train((x_inputs_train, y_target_output_train), epochs, learning_rate)
+
+    # Inference
+    test_probabilities = p.forward(test_data[0])
+    test_predictions = np.argmax(test_probabilities, axis=1)
+
+    # Accuracy
+    test_accuracy = np.mean(test_predictions == test_data[1])
+
+    # i.e "mlp_model[in-hl-hl-out]" 
+    nn_arq = f'mlp_model[{input_layer}'
+    nn_arq += ''.join(f'-{hl}' for hl in hidden_layer)
+    nn_arq += f'-{output_layer}]'
+
+    # Results
+    print(f"\n{nn_arq}, epochs: {epochs}, learning rate: {learning_rate} \
+            \nTraining Loss:\t{output['training_losses'][-1]:.3} \
+            \nTraining Acc.:\t{output['training_accuracies'][-1]:.3%} \
+            \nTest Acc.:\t{test_accuracy:.3%}\n")
