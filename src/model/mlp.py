@@ -58,6 +58,12 @@ class MLP(object):
         loss = -np.mean(np.sum(y * np.log(y_hat + epsilon), axis=1)) # Add epsilon for stability
         return loss
 
+    def sigmoid_activation(self, Z, derivative: bool = False):
+        """Applies Sigmoid activation function to the input."""
+        if derivative:
+            return Z * (1 - Z)
+        return 1 / (1 + np.exp(-Z))
+
     def forward(self, X):
         """Performs the forward pass through the network.
 
@@ -77,7 +83,7 @@ class MLP(object):
             # Linear Transform (Weighted Sum) Layer
             Z = np.dot(self.logits[-1], self.weights[i]) + self.biases[i]
             # Sigmoid Activation Layer
-            h = 1.0 / (1 + np.exp(-Z))
+            h = self.sigmoid_activation(Z)
             self.logits.append(h)
 
         # Output Layer
@@ -104,7 +110,7 @@ class MLP(object):
 
         for i in reversed(range(self.nlayers)):
             if i < len(self.hidden_layer): # Skip output layer
-                dinput = dinput * (self.logits[i+1] * (1 - self.logits[i+1]))
+                dinput = dinput * self.sigmoid_activation(self.logits[i+1], derivative=True)
 
             self.dW[i] = np.dot(self.logits[i].T, dinput)
             self.db[i] = np.sum(dinput, axis=0, keepdims=False)
