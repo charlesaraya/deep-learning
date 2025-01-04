@@ -55,7 +55,7 @@ class MLP(object):
                 float: The cross-entropy loss averaged across all samples.
         """
         epsilon = 1e-8
-        loss = -np.mean(np.sum(y * np.log(y_hat + epsilon), axis=1)) # Add epsilon for stability
+        loss = np.mean(np.sum(-y * np.log(y_hat + epsilon), axis=1)) # Add epsilon for stability
         return loss
 
     def sigmoid_activation(self, Z, derivative: bool = False):
@@ -79,6 +79,13 @@ class MLP(object):
         exp_x = np.exp(Z - np.max(Z, axis=1, keepdims=True))
         y_hat = exp_x / np.sum(exp_x, axis=1, keepdims=True) # predicted probability for each class
         return y_hat
+    
+    def mini_batch_data(self, X, y, batch_size):
+        data_indices = np.arange(X.shape[0])
+        for start_idx in range(0, X.shape[0], batch_size):
+            end_idx = start_idx + batch_size
+            batch_indices = data_indices[start_idx:end_idx]
+            yield X[batch_indices], y[batch_indices]
 
     def forward(self, X):
         """Performs the forward pass through the network.
@@ -136,7 +143,7 @@ class MLP(object):
             self.weights[i] -= self.learning_rate * self.dW[i]
             self.biases[i] -= self.learning_rate * self.db[i]
 
-    def train(self, train_data, epochs, learning_rate):
+    def train(self, train_data, epochs, learning_rate, batch_size):
         """Trains the MLP on the training data.
         
         Performs forward and backward passes at a given learning rate, and over a number of epochs.
@@ -160,22 +167,26 @@ class MLP(object):
 
         X = train_data[0]
         y = self.one_hot_encode(train_data[1])
+
+        batch_gen = self.mini_batch_data(X, y, batch_size)
     
         for epoch in range(epochs):
-            # Forward Pass
-            y_hat = self.forward(X)
-
-            # Calculate error in prediction using Cross-Entropy Loss function
-            loss = self.cross_entropy_loss(y_hat, y)
             
-            # Backpropagation Pass: Calculate Gradients, Weights & Bias
-            self.backward(y_hat, y)
+            for X_batch, y_batch in batch_gen:
+                # Forward Pass
+                y_hat = self.forward(X_batch)
 
-            # Monitor Accuracy and Loss
-            predictions = np.argmax(y_hat, axis=1)
-            accuracy = np.mean(predictions == np.argmax(y, axis=1))
-            training_accuracies.append(accuracy)
-            training_losses.append(loss)
+                # Calculate error in prediction using Cross-Entropy Loss function
+                loss = self.cross_entropy_loss(y_hat, y_batch)
+
+                # Backpropagation Pass: Calculate Gradients, Weights & Bias
+                self.backward(y_hat, y_batch)
+
+                # Monitor Accuracy and Loss
+                predictions = np.argmax(y_hat, axis=1)
+                accuracy = np.mean(predictions == np.argmax(y, axis=1))
+                training_accuracies.append(accuracy)
+                training_losses.append(loss)
         
         return {
             'weights': self.weights,
@@ -190,6 +201,7 @@ if __name__ == '__main__':
     # Data Prep
     df = pd.read_csv('data/Iris/iris.csv', header=None)
     df[5] = pd.Categorical(df[4]).codes
+    df = df.sample(frac=1).reset_index(drop=True)
     # Sample test and train data
     test_ratio = 0.2
     test_data = df.sample(frac=test_ratio, random_state=8000)
@@ -209,12 +221,13 @@ if __name__ == '__main__':
     output_layer = 3
     learning_rate = 0.01
     epochs = 2000
+    batch_size = 8
 
     # NN Setup
     p = MLP(input_layer, hidden_layer, output_layer)
 
     # Training
-    output = p.train((x_inputs_train, y_target_output_train), epochs, learning_rate)
+    output = p.train((x_inputs_train, y_target_output_train), epochs, learning_rate, batch_size)
 
     # Inference
     test_probabilities = p.forward(test_data[0])
