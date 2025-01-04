@@ -55,8 +55,9 @@ class MLP(object):
                 float: The cross-entropy loss averaged across all samples.
         """
         epsilon = 1e-8
-        loss = np.mean(np.sum(-y * np.log(y_hat + epsilon), axis=1)) # Add epsilon for stability
-        return loss
+        loss = -y * np.log(y_hat + epsilon) # Add epsilon for stability
+        loss_batch = np.sum(loss) / y.shape[0]
+        return loss_batch
 
     def sigmoid_activation(self, Z, derivative: bool = False):
         """Applies Sigmoid activation function to the input."""
@@ -81,6 +82,20 @@ class MLP(object):
         return y_hat
     
     def mini_batch_data(self, X, y, batch_size):
+        """Generates mini-batches of data for training.
+
+        This function splits the input data into smaller subsets (mini-batches) of the specified size and yields one mini-batch at a time.
+
+        Args:
+            X (ndarray): Input data. Each row corresponds to a sample and each column corresponds to a feature.
+            y (ndarray): The true target labels for each training sample.
+            batch_size (int): The size of each mini-batch.
+
+        Yields:
+            tuple: A tuple (X_batch, y_batch) where:
+                - X_batch (ndarray): Mini-batch of input data. The last batch could be smaller if the data size is not divisible by the batch size.
+                - y_batch (ndarray): Mini-batch of target labels.
+        """
         data_indices = np.arange(X.shape[0])
         for start_idx in range(0, X.shape[0], batch_size):
             end_idx = start_idx + batch_size
