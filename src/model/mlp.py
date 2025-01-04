@@ -141,17 +141,16 @@ class MLP(object):
         """
 
         # Gradient of the loss w.r.t. predictions
-        grad_loss = y_hat  - y
-        dinput = grad_loss / y.shape[0]
+        dloss = (y_hat  - y) / y.shape[0]
 
         for i in reversed(range(self.nlayers)):
             if i < len(self.hidden_layer): # Skip output layer
-                dinput = dinput * self.sigmoid_activation(self.logits[i+1], derivative=True)
+                dloss = dloss * self.sigmoid_activation(self.logits[i+1], derivative=True)
 
-            self.dW[i] = np.dot(self.logits[i].T, dinput)
-            self.db[i] = np.sum(dinput, axis=0, keepdims=False)
+            self.dW[i] = np.dot(self.logits[i].T, dloss)
+            self.db[i] = np.sum(dloss, axis=0, keepdims=False)
 
-            dinput = np.dot(dinput, self.weights[i].T)
+            dloss = np.dot(dloss, self.weights[i].T)
         
         # Update weights and biases
         for i in range(self.nlayers):
@@ -182,12 +181,10 @@ class MLP(object):
 
         X = train_data[0]
         y = self.one_hot_encode(train_data[1])
-
-        batch_gen = self.mini_batch_data(X, y, batch_size)
     
         for epoch in range(epochs):
-            
-            for X_batch, y_batch in batch_gen:
+            batch_accuracies, batch_losses = [], []
+            for X_batch, y_batch in self.mini_batch_data(X, y, batch_size):
                 # Forward Pass
                 y_hat = self.forward(X_batch)
 
@@ -197,12 +194,15 @@ class MLP(object):
                 # Backpropagation Pass: Calculate Gradients, Weights & Bias
                 self.backward(y_hat, y_batch)
 
-                # Monitor Accuracy and Loss
+                # Monitor batch metrics
                 predictions = np.argmax(y_hat, axis=1)
-                accuracy = np.mean(predictions == np.argmax(y, axis=1))
-                training_accuracies.append(accuracy)
-                training_losses.append(loss)
-        
+                accuracy = np.mean(predictions == np.argmax(y_batch, axis=1))
+                batch_accuracies.append(accuracy)
+                batch_losses.append(loss)
+            # Monitor epoch metrics
+            training_accuracies.append(np.mean(batch_accuracies))
+            training_losses.append(np.mean(batch_losses))
+
         return {
             'weights': self.weights,
             'bias': self.biases,
@@ -216,10 +216,10 @@ if __name__ == '__main__':
     # Data Prep
     df = pd.read_csv('data/Iris/iris.csv', header=None)
     df[5] = pd.Categorical(df[4]).codes
-    df = df.sample(frac=1).reset_index(drop=True)
+    df = df.sample(frac=1, random_state=42).reset_index(drop=True)
     # Sample test and train data
     test_ratio = 0.2
-    test_data = df.sample(frac=test_ratio, random_state=8000)
+    test_data = df.sample(frac=test_ratio, random_state=42)
     train_data = df.drop(test_data.index)
     # Train Dataset
     x_inputs_train = train_data.iloc[:, 0:4].values
@@ -235,7 +235,7 @@ if __name__ == '__main__':
     hidden_layer = [64]
     output_layer = 3
     learning_rate = 0.01
-    epochs = 2000
+    epochs = 100
     batch_size = 8
 
     # NN Setup
@@ -257,7 +257,7 @@ if __name__ == '__main__':
     nn_arq += f'-{output_layer}]'
 
     # Results
-    print(f"\n{nn_arq}, epochs: {epochs}, learning rate: {learning_rate} \
+    print(f"\n{nn_arq}, epochs: {epochs}, batch size: {batch_size}, learning rate: {learning_rate} \
             \nTraining Loss:\t{output['training_losses'][-1]:.3} \
             \nTraining Acc.:\t{output['training_accuracies'][-1]:.3%} \
             \nTest Acc.:\t{test_accuracy:.3%}\n")
