@@ -28,7 +28,7 @@ class MLP(object):
         self.dW = [0] * self.nlayers
         self.db = [0] * self.nlayers
 
-    def one_hot_encode(self, y_target):
+    def one_hot_encode(self, y_target: np.ndarray) -> np.ndarray:
         """Encodes each target label class into its one-hot format.
 
         Args:
@@ -44,7 +44,7 @@ class MLP(object):
             y_encoded[-1][yi] = 1
         return np.asarray(y_encoded)
     
-    def cross_entropy_loss(self, y_hat, y):
+    def cross_entropy_loss(self, y_hat: np.ndarray, y: np.ndarray) -> float:
         """Computes the cross-entropy loss between predicted probabilities and true labels.
 
             Args:
@@ -59,13 +59,13 @@ class MLP(object):
         loss_batch = np.sum(loss) / y.shape[0]
         return loss_batch
 
-    def sigmoid_activation(self, Z, derivative: bool = False):
+    def sigmoid_activation(self, Z: np.ndarray, derivative: bool = False) -> np.ndarray:
         """Applies Sigmoid activation function to the input."""
         if derivative:
             return Z * (1 - Z)
         return 1 / (1 + np.exp(-Z))
 
-    def softmax_activation(self, Z):
+    def softmax_activation(self, Z: np.ndarray) -> np.ndarray:
         """Applies Softmax activation function to the input.
         
         The softmax function converts logits (raw scores) into a probability distribution, 
@@ -81,7 +81,7 @@ class MLP(object):
         y_hat = exp_x / np.sum(exp_x, axis=1, keepdims=True) # predicted probability for each class
         return y_hat
     
-    def mini_batch_data(self, X, y, batch_size):
+    def mini_batch_data(self, X: np.ndarray, y: np.ndarray, batch_size: int):
         """Generates mini-batches of data for training.
 
         This function splits the input data into smaller subsets (mini-batches) of the specified size and yields one mini-batch at a time.
@@ -102,7 +102,7 @@ class MLP(object):
             batch_indices = data_indices[start_idx:end_idx]
             yield X[batch_indices], y[batch_indices]
 
-    def forward(self, X):
+    def forward(self, X: np.ndarray) -> np.ndarray:
         """Performs the forward pass through the network.
 
         Args:
@@ -130,7 +130,7 @@ class MLP(object):
         y_hat = self.softmax_activation(Z)
         return y_hat
 
-    def backward(self, y_hat, y):
+    def backward(self, y_hat: np.ndarray, y: np.ndarray) -> None:
         """Performs the backward pass through the network.
         
         Computing the gradients of the loss w.r.t. the model parameters, and updates the weights and biases.
@@ -157,7 +157,7 @@ class MLP(object):
             self.weights[i] -= self.learning_rate * self.dW[i]
             self.biases[i] -= self.learning_rate * self.db[i]
 
-    def train(self, train_data, epochs, learning_rate, batch_size):
+    def train(self, train_data: np.ndarray, epochs: int, learning_rate: float, batch_size: int) -> dict:
         """Trains the MLP on the training data.
         
         Performs forward and backward passes at a given learning rate, and over a number of epochs.
