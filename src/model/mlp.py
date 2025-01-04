@@ -64,6 +64,22 @@ class MLP(object):
             return Z * (1 - Z)
         return 1 / (1 + np.exp(-Z))
 
+    def softmax_activation(self, Z):
+        """Applies Softmax activation function to the input.
+        
+        The softmax function converts logits (raw scores) into a probability distribution, 
+        ensuring that the output values are in the range [0, 1] and sum to 1 across each sample.
+
+        Args:
+            Z (ndarray): Input array (logits). Each row corresponds to the raw scores for a single sample across all classes.
+
+        Returns:
+            ndarray: Output array with softmax probabilities. Each row represents a valid probability distribution.
+        """
+        exp_x = np.exp(Z - np.max(Z, axis=1, keepdims=True))
+        y_hat = exp_x / np.sum(exp_x, axis=1, keepdims=True) # predicted probability for each class
+        return y_hat
+
     def forward(self, X):
         """Performs the forward pass through the network.
 
@@ -89,9 +105,7 @@ class MLP(object):
         # Output Layer
         Z = np.dot(self.logits[-1], self.weights[-1]) + self.biases[-1]
         self.logits.append(Z)
-        # Apply Softmax Activation to Output Layer
-        exp_x = np.exp(Z - np.max(Z, axis=1, keepdims=True))
-        y_hat = exp_x / np.sum(exp_x, axis=1, keepdims=True) # predicted probability for each class
+        y_hat = self.softmax_activation(Z)
         return y_hat
 
     def backward(self, y_hat, y):
@@ -191,7 +205,7 @@ if __name__ == '__main__':
 
     # Hyperparameters
     input_layer = 4
-    hidden_layer = [128]
+    hidden_layer = [64]
     output_layer = 3
     learning_rate = 0.01
     epochs = 2000
