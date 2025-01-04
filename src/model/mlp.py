@@ -55,8 +55,9 @@ class MLP(object):
                 float: The cross-entropy loss averaged across all samples.
         """
         epsilon = 1e-8
-        loss = -np.mean(np.sum(y * np.log(y_hat + epsilon), axis=1)) # Add epsilon for stability
-        return loss
+        loss = -y * np.log(y_hat + epsilon) # Add epsilon for stability
+        loss_batch = np.sum(loss) / y.shape[0]
+        return loss_batch
 
     def sigmoid_activation(self, Z, derivative: bool = False):
         """Applies Sigmoid activation function to the input."""
@@ -79,6 +80,27 @@ class MLP(object):
         exp_x = np.exp(Z - np.max(Z, axis=1, keepdims=True))
         y_hat = exp_x / np.sum(exp_x, axis=1, keepdims=True) # predicted probability for each class
         return y_hat
+    
+    def mini_batch_data(self, X, y, batch_size):
+        """Generates mini-batches of data for training.
+
+        This function splits the input data into smaller subsets (mini-batches) of the specified size and yields one mini-batch at a time.
+
+        Args:
+            X (ndarray): Input data. Each row corresponds to a sample and each column corresponds to a feature.
+            y (ndarray): The true target labels for each training sample.
+            batch_size (int): The size of each mini-batch.
+
+        Yields:
+            tuple: A tuple (X_batch, y_batch) where:
+                - X_batch (ndarray): Mini-batch of input data. The last batch could be smaller if the data size is not divisible by the batch size.
+                - y_batch (ndarray): Mini-batch of target labels.
+        """
+        data_indices = np.arange(X.shape[0])
+        for start_idx in range(0, X.shape[0], batch_size):
+            end_idx = start_idx + batch_size
+            batch_indices = data_indices[start_idx:end_idx]
+            yield X[batch_indices], y[batch_indices]
 
     def forward(self, X):
         """Performs the forward pass through the network.
@@ -119,24 +141,23 @@ class MLP(object):
         """
 
         # Gradient of the loss w.r.t. predictions
-        grad_loss = y_hat  - y
-        dinput = grad_loss / y.shape[0]
+        dloss = (y_hat  - y) / y.shape[0]
 
         for i in reversed(range(self.nlayers)):
             if i < len(self.hidden_layer): # Skip output layer
-                dinput = dinput * self.sigmoid_activation(self.logits[i+1], derivative=True)
+                dloss = dloss * self.sigmoid_activation(self.logits[i+1], derivative=True)
 
-            self.dW[i] = np.dot(self.logits[i].T, dinput)
-            self.db[i] = np.sum(dinput, axis=0, keepdims=False)
+            self.dW[i] = np.dot(self.logits[i].T, dloss)
+            self.db[i] = np.sum(dloss, axis=0, keepdims=False)
 
-            dinput = np.dot(dinput, self.weights[i].T)
+            dloss = np.dot(dloss, self.weights[i].T)
         
         # Update weights and biases
         for i in range(self.nlayers):
             self.weights[i] -= self.learning_rate * self.dW[i]
             self.biases[i] -= self.learning_rate * self.db[i]
 
-    def train(self, train_data, epochs, learning_rate):
+    def train(self, train_data, epochs, learning_rate, batch_size):
         """Trains the MLP on the training data.
         
         Performs forward and backward passes at a given learning rate, and over a number of epochs.
@@ -162,21 +183,26 @@ class MLP(object):
         y = self.one_hot_encode(train_data[1])
     
         for epoch in range(epochs):
-            # Forward Pass
-            y_hat = self.forward(X)
+            batch_accuracies, batch_losses = [], []
+            for X_batch, y_batch in self.mini_batch_data(X, y, batch_size):
+                # Forward Pass
+                y_hat = self.forward(X_batch)
 
-            # Calculate error in prediction using Cross-Entropy Loss function
-            loss = self.cross_entropy_loss(y_hat, y)
-            
-            # Backpropagation Pass: Calculate Gradients, Weights & Bias
-            self.backward(y_hat, y)
+                # Calculate error in prediction using Cross-Entropy Loss function
+                loss = self.cross_entropy_loss(y_hat, y_batch)
 
-            # Monitor Accuracy and Loss
-            predictions = np.argmax(y_hat, axis=1)
-            accuracy = np.mean(predictions == np.argmax(y, axis=1))
-            training_accuracies.append(accuracy)
-            training_losses.append(loss)
-        
+                # Backpropagation Pass: Calculate Gradients, Weights & Bias
+                self.backward(y_hat, y_batch)
+
+                # Monitor batch metrics
+                predictions = np.argmax(y_hat, axis=1)
+                accuracy = np.mean(predictions == np.argmax(y_batch, axis=1))
+                batch_accuracies.append(accuracy)
+                batch_losses.append(loss)
+            # Monitor epoch metrics
+            training_accuracies.append(np.mean(batch_accuracies))
+            training_losses.append(np.mean(batch_losses))
+
         return {
             'weights': self.weights,
             'bias': self.biases,
@@ -190,9 +216,10 @@ if __name__ == '__main__':
     # Data Prep
     df = pd.read_csv('data/Iris/iris.csv', header=None)
     df[5] = pd.Categorical(df[4]).codes
+    df = df.sample(frac=1, random_state=42).reset_index(drop=True)
     # Sample test and train data
     test_ratio = 0.2
-    test_data = df.sample(frac=test_ratio, random_state=8000)
+    test_data = df.sample(frac=test_ratio, random_state=42)
     train_data = df.drop(test_data.index)
     # Train Dataset
     x_inputs_train = train_data.iloc[:, 0:4].values
@@ -208,13 +235,14 @@ if __name__ == '__main__':
     hidden_layer = [64]
     output_layer = 3
     learning_rate = 0.01
-    epochs = 2000
+    epochs = 100
+    batch_size = 8
 
     # NN Setup
     p = MLP(input_layer, hidden_layer, output_layer)
 
     # Training
-    output = p.train((x_inputs_train, y_target_output_train), epochs, learning_rate)
+    output = p.train((x_inputs_train, y_target_output_train), epochs, learning_rate, batch_size)
 
     # Inference
     test_probabilities = p.forward(test_data[0])
@@ -229,7 +257,7 @@ if __name__ == '__main__':
     nn_arq += f'-{output_layer}]'
 
     # Results
-    print(f"\n{nn_arq}, epochs: {epochs}, learning rate: {learning_rate} \
+    print(f"\n{nn_arq}, epochs: {epochs}, batch size: {batch_size}, learning rate: {learning_rate} \
             \nTraining Loss:\t{output['training_losses'][-1]:.3} \
             \nTraining Acc.:\t{output['training_accuracies'][-1]:.3%} \
             \nTest Acc.:\t{test_accuracy:.3%}\n")
