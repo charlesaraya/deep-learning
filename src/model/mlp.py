@@ -1,5 +1,7 @@
 import numpy as np
 
+np.random.seed(42)
+
 class MLP(object):
     """A simple implementation of a Multi-Layer Perceptron (MLP) for basic machine learning tasks."""
 
