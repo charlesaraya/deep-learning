@@ -62,7 +62,18 @@ class MLP(object):
         return loss_batch
 
     def sigmoid_activation(self, Z: np.ndarray, derivative: bool = False) -> np.ndarray:
-        """Applies Sigmoid activation function to the input."""
+        """Applies Sigmoid activation function to the input.
+
+        The Sigmoid activation function maps input values to the range (0, 1), useful for 
+        modeling probabilities. 
+
+        Args:
+            Z (ndarray): Input array, typically a pre-activation value (logits) from a layer.
+            derivative (bool, optional): Computes the derivative of the Sigmoid function instead of the activation itself.
+
+        Returns:
+            ndarray: Output array with the activation value or derivative for the layer.
+        """
         if derivative:
             return Z * (1 - Z)
         return 1 / (1 + np.exp(-Z))
