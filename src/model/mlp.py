@@ -16,6 +16,8 @@ class MLP(object):
         self.hidden_layer = hidden_layer
         self.nlayers = len(hidden_layer) + 1 # hidden layers + output layer
         
+        self.activation_fn = self.tanh_activation
+
         # Init hidden layers weights and bias
         self.weights, self.biases = [], []
         prev_dim = input_layer
@@ -75,8 +77,26 @@ class MLP(object):
             ndarray: Output array with the activation value or derivative for the layer.
         """
         if derivative:
-            return Z * (1 - Z)
-        return 1 / (1 + np.exp(-Z))
+            return Z * (1. - Z)
+        return 1. / (1. + np.exp(-Z))
+    
+    def tanh_activation(self, Z: np.ndarray, derivative: bool = False) -> np.ndarray:
+        """Applies Tanh activation function to the input.
+
+        The Sigmoid activation function maps input values to the range (-1, 1), useful for 
+        dealing with negative values more effectively. 
+
+        Args:
+            Z (ndarray): Input array, typically a pre-activation value (logits) from a layer.
+            derivative (bool, optional): Computes the derivative of the Sigmoid function instead of the activation itself.
+
+        Returns:
+            ndarray: Output array with the activation value or derivative for the layer.
+        """
+        tanh = np.divide(np.exp(Z) - np.exp(-Z), np.exp(Z) + np.exp(-Z)) # shortcut: np.tanh(Z)
+        if derivative:
+            return 1. - tanh**2
+        return tanh
 
     def relu_activation(self, Z: np.ndarray, derivative: bool = False) -> np.ndarray:
         """Applies ReLU activation function to the input.
@@ -150,7 +170,7 @@ class MLP(object):
             # Linear Transform (Weighted Sum) Layer
             Z = np.dot(self.logits[-1], self.weights[i]) + self.biases[i]
             # Sigmoid Activation Layer
-            h = self.sigmoid_activation(Z)
+            h = self.activation_fn(Z)
             self.logits.append(h)
 
         # Output Layer
@@ -174,7 +194,7 @@ class MLP(object):
 
         for i in reversed(range(self.nlayers)):
             if i < len(self.hidden_layer): # Skip output layer
-                dloss = dloss * self.sigmoid_activation(self.logits[i+1], derivative=True)
+                dloss = dloss * self.activation_fn(self.logits[i+1], derivative=True)
 
             self.dW[i] = np.dot(self.logits[i].T, dloss)
             self.db[i] = np.sum(dloss, axis=0, keepdims=False)
@@ -264,7 +284,7 @@ if __name__ == '__main__':
     hidden_layer = [64]
     output_layer = 3
     learning_rate = 0.01
-    epochs = 100
+    epochs = 20
     batch_size = 8
 
     # NN Setup
