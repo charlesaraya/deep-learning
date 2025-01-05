@@ -78,6 +78,22 @@ class MLP(object):
             return Z * (1 - Z)
         return 1 / (1 + np.exp(-Z))
 
+    def relu_activation(self, Z: np.ndarray, derivative: bool = False) -> np.ndarray:
+        """Applies ReLU activation function to the input.
+
+        A ReLU (Rectified Linear Unit) activation function is linear in the positive dimension, but zero in the negative dimension. 
+
+        Args:
+            Z (ndarray): Input array, typically a pre-activation value (logits) from a layer.
+            derivative (bool, optional): Computes the derivative of the Sigmoid function instead of the activation itself.
+
+        Returns:
+            ndarray: Output array with the activation value or derivative for the layer.
+        """
+        if derivative:
+            return np.where(Z < 0, 0, 1.)
+        return np.maximum(0, Z)
+
     def softmax_activation(self, Z: np.ndarray) -> np.ndarray:
         """Applies Softmax activation function to the input.
         
