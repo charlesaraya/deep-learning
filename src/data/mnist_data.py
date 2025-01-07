@@ -7,10 +7,6 @@ import matplotlib.pyplot as plt
 
 np.random.seed(42) # For reproducibility
 
-#
-# MNIST Data Loader Class
-#   - https://yann.lecun.com/exdb/mnist/
-#
 class MNISTDatasetManager(object):
     def __init__(self, batch_size: int):
         """MNIST Dataset Manager.
@@ -28,10 +24,10 @@ class MNISTDatasetManager(object):
         if self.train_data is None:
             raise ValueError('No training data available.')
         
+        images, labels = self.train_data
         data_length = images.shape[0]
         self.total_batches = -(data_length // -self.batch_size) # def ceildiv(a, b): return -(a // -b)
 
-        images, labels = self.train_data
         data_indices = np.arange(data_length)
         for start_idx in range(0, len(images), self.batch_size):
             end_idx = start_idx + self.batch_size
@@ -39,35 +35,53 @@ class MNISTDatasetManager(object):
             yield images[batch_indices], labels[batch_indices]
 
     def load_labels(self, filepath: str):
-        """Loads labels from the specified file path.
+        """Loads labels from the specified file path in raw binary format.
+
+        Reads and parses label data from a binary file, typically used for datasets 
+        such as MNIST. The file's structure is validated using a magic number, and the labels 
+        are extracted as integers.
 
         Args:
             filepath (str): Path to the file or directory containing the label raw data.
+
+        Returns:
+            np.ndarray: Array of labels, where each label is an integer (e.g., 0 to 9).
+
+        Raises:
+            ValueError: If the file's magic number does not match the expected value (2049).
+
+        File Format:
+            The label file format is as follows:
+            - Offset 0000: Magic number (4 bytes; 3rd byte indicates data type, 4th byte indicates dimensions).
+            - Offset 0004: Dataset size (number of labels).
+            - Offset 0008+: Labels (unsigned bytes, one per label).
+        References:
+            - [Yann LeCun's MNIST Dataset Format](https://yann.lecun.com/exdb/mnist/)
         """
-        with open(filepath, 'rb') as file: # read file in binary mode, returns contents as 'bytes' objects without any decoding
-            # offset
-            # 0000 : Magic number (3rd byte: type of data, 4th byte: number of dimensions vector/matrices)
-            # 0004 : dataset size
-            # 0008, 0009, ... : label 1, label 2, ...
-            magic, size = struct.unpack('>II', file.read(8)) # Format char '>': big-endian byte order. Format 'I': unsigned int (standard size 4)
+        with open(filepath, 'rb') as file:
+            magic, size = struct.unpack('>II', file.read(8))
             if magic != 2049:
                 raise ValueError(f'Magic number mismatch, expected 2049, got {magic}')
             labels = np.asarray(array('B', file.read())) # next bytes represent the labels values (0 to 9)
         return labels
 
     def load_images(self, filepath: str):
-        """Loads images from the specified file path.
+        """Loads images from the specified file path in raw binary format.
+
+        Reads and parses image data from a binary file.
 
         Args:
             filepath (str): Path to the file or directory containing the image raw data.
+
+        File Format:
+            The image file format is as follows:
+            - Offset 0000: Magic number (4 bytes; identifies the file type).
+            - Offset 0004: Dataset size (number of images).
+            - Offset 0008: Number of rows per image.
+            - Offset 0012: Number of columns per image.
+            - Offset 0016+: Pixel values (unsigned bytes, row-major order).
         """
         with open(filepath, 'rb') as file:
-            # offset
-            # 0000 : Magic number
-            # 0004 : dataset size
-            # 0008 : numer of rows
-            # 0012 : numer of cols
-            # 0016, 0320, 0321, ... : 1st pixel img 1, last pixel img 1, 1st pixel img 2, ...
             magic, size, rows, cols = struct.unpack('>IIII', file.read(16))
             if magic != 2051:
                 raise ValueError(f'Magic number mismatch, expected 2051, got {magic}')
@@ -83,7 +97,15 @@ class MNISTDatasetManager(object):
         return images
 
     def load_data(self, images_filepath: str, labels_filepath: str, type: str):
-        """Loads training or test datasets."""
+        """Loads training or test datasets by combining images and labels.
+        
+        Args:
+            images_filepath (str): Path to the file containing the raw image data.
+            labels_filepath (str): Path to the file containing the raw label data.
+            type (str): Specifies the dataset type. Must be one of:
+                - `'train'`: Loads data into `self.train_data`.
+                - `'test'`: Loads data into `self.test_data`.
+        """
         images = self.load_images(images_filepath)
         labels = self.load_labels(labels_filepath)
         match type:
@@ -96,6 +118,19 @@ class MNISTDatasetManager(object):
 
         return images, labels
 
+    def one_hot_encode(self, labels: np.ndarray):
+        """Encodes each target label class into its one-hot format.
+
+        Args:
+            labels (ndarray): Array of integers representing the target labels.
+        """
+        nlabels = max(labels) + 1
+        labels_encoded  = []
+        for label in labels:
+            labels_encoded.append(np.zeros(nlabels))
+            labels_encoded[-1][label] = 1
+        return np.asarray(labels_encoded)
+
     def prepdata(self, type: str, shuffle: bool = False, validation_len: int = None):
         """Returns preprocessed the training and test datasets."""
         match type:
@@ -103,6 +138,7 @@ class MNISTDatasetManager(object):
                 if self.train_data is None:
                     raise ValueError('No training data available.')
                 images, labels = self.train_data
+                labels = self.one_hot_encode(labels)
             case 'test':
                 if self.test_data is None:
                     raise ValueError('No test data available.')
