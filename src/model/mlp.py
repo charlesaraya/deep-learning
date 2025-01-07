@@ -1,4 +1,5 @@
 import numpy as np
+from data.mnist_data import MNISTDatasetManager
 
 np.random.seed(42)
 
@@ -31,22 +32,6 @@ class MLP(object):
         self.biases.append(np.zeros((1, output_layer)))
         self.dW = [0] * self.nlayers
         self.db = [0] * self.nlayers
-
-    def one_hot_encode(self, y_target: np.ndarray) -> np.ndarray:
-        """Encodes each target label class into its one-hot format.
-
-        Args:
-            y_target (ndarray): Array of integers representing the target labels.
-
-        Returns:
-            ndarray: Array of float arrays representing the one-hot encoded vector of the target labels.
-        """
-        nlabels = max(y_target) + 1
-        y_encoded  = []
-        for yi in y_target:
-            y_encoded.append(np.zeros(nlabels))
-            y_encoded[-1][yi] = 1
-        return np.asarray(y_encoded)
     
     def cross_entropy_loss(self, y_hat: np.ndarray, y: np.ndarray) -> float:
         """Computes the cross-entropy loss between predicted probabilities and true labels.
@@ -129,27 +114,6 @@ class MLP(object):
         exp_x = np.exp(Z - np.max(Z, axis=1, keepdims=True))
         y_hat = exp_x / np.sum(exp_x, axis=1, keepdims=True) # predicted probability for each class
         return y_hat
-    
-    def mini_batch_data(self, X: np.ndarray, y: np.ndarray, batch_size: int):
-        """Generates mini-batches of data for training.
-
-        This function splits the input data into smaller subsets (mini-batches) of the specified size and yields one mini-batch at a time.
-
-        Args:
-            X (ndarray): Input data. Each row corresponds to a sample and each column corresponds to a feature.
-            y (ndarray): The true target labels for each training sample.
-            batch_size (int): The size of each mini-batch.
-
-        Yields:
-            tuple: A tuple (X_batch, y_batch) where:
-                - X_batch (ndarray): Mini-batch of input data. The last batch could be smaller if the data size is not divisible by the batch size.
-                - y_batch (ndarray): Mini-batch of target labels.
-        """
-        data_indices = np.arange(X.shape[0])
-        for start_idx in range(0, X.shape[0], batch_size):
-            end_idx = start_idx + batch_size
-            batch_indices = data_indices[start_idx:end_idx]
-            yield X[batch_indices], y[batch_indices]
 
     def forward(self, X: np.ndarray) -> np.ndarray:
         """Performs the forward pass through the network.
@@ -206,15 +170,13 @@ class MLP(object):
             self.weights[i] -= self.learning_rate * self.dW[i]
             self.biases[i] -= self.learning_rate * self.db[i]
 
-    def train(self, train_data: np.ndarray, epochs: int, learning_rate: float, batch_size: int) -> dict:
+    def train(self, datamanager: MNISTDatasetManager, epochs: int, learning_rate: float) -> dict:
         """Trains the MLP on the training data.
         
         Performs forward and backward passes at a given learning rate, and over a number of epochs.
 
         Args:
-            train_data (tuple): A tuple containing the training data, where:
-                - X (ndarray): The input data.
-                - y (ndarray): The true target labels that exist in the classification task.
+            datamanager (MNISTDatasetManager): A DataManager class containing the training and validation data, as well as an iterator for mini-batch.
             epochs (int): The number of times the model will iterate over the entire training dataset.
             learning_rate (float): The learning rate used for gradient descent to update the model parameters.
 
@@ -228,12 +190,9 @@ class MLP(object):
         training_accuracies, training_losses = [], []
         self.learning_rate = learning_rate
 
-        X = train_data[0]
-        y = self.one_hot_encode(train_data[1])
-    
         for epoch in range(epochs):
             batch_accuracies, batch_losses = [], []
-            for X_batch, y_batch in self.mini_batch_data(X, y, batch_size):
+            for X_batch, y_batch in datamanager:
                 # Forward Pass
                 y_hat = self.forward(X_batch)
 
@@ -258,55 +217,65 @@ class MLP(object):
             'training_accuracies': training_accuracies,
             'training_losses': training_losses
         }
+    
+if __name__ == "__main__":
 
-if __name__ == '__main__':
-    import pandas as pd
+    # Set file paths based on added MNIST Datasets
+    config = {
+        'train_images_filepath': './data/MNIST/train-images',
+        'train_labels_filepath': './data/MNIST/train-labels',
+        'test_images_filepath': './data/MNIST/test-images',
+        'test_labels_filepath': './data/MNIST/test-labels',
+        'metrics_filepath': './plots/metrics/',
+    }
 
-    # Data Prep
-    df = pd.read_csv('data/Iris/iris.csv', header=None)
-    df[5] = pd.Categorical(df[4]).codes
-    df = df.sample(frac=1, random_state=42).reset_index(drop=True)
-    # Sample test and train data
-    test_ratio = 0.2
-    test_data = df.sample(frac=test_ratio, random_state=42)
-    train_data = df.drop(test_data.index)
-    # Train Dataset
-    x_inputs_train = train_data.iloc[:, 0:4].values
-    y_target_output_train = np.array(train_data[5])
-    train_data = (x_inputs_train, y_target_output_train)
-    # Test Dataset
-    x_inputs_test = test_data.iloc[:,0:4].values
-    y_target_output_test = np.array(test_data[5])
-    test_data = (x_inputs_test, y_target_output_test)
+    # Load MINST dataset
+    batch_size = 64
+    mnist = MNISTDatasetManager(batch_size)
 
-    # Hyperparameters
-    input_layer = 4
+    mnist.load_data(
+        config['train_images_filepath'],
+        config['train_labels_filepath'],
+        'train'
+        )
+    mnist.load_data(
+        config['test_images_filepath'],
+        config['test_labels_filepath'],
+        'test'
+        )
+
+    train_data = mnist.prepdata('train', shuffle=True, validation_len=10000)
+    test_data = mnist.prepdata('test')
+
+    # Architecture
+    input_layer = train_data[0].shape[1]
     hidden_layer = [64]
-    output_layer = 3
-    learning_rate = 0.01
-    epochs = 20
-    batch_size = 8
-
-    # NN Setup
-    p = MLP(input_layer, hidden_layer, output_layer)
-
-    # Training
-    output = p.train((x_inputs_train, y_target_output_train), epochs, learning_rate, batch_size)
-
-    # Inference
-    test_probabilities = p.forward(test_data[0])
-    test_predictions = np.argmax(test_probabilities, axis=1)
-
-    # Accuracy
-    test_accuracy = np.mean(test_predictions == test_data[1])
-
+    output_layer = train_data[1].shape[1]
     # i.e "mlp_model[in-hl-hl-out]" 
     nn_arq = f'mlp_model[{input_layer}'
     nn_arq += ''.join(f'-{hl}' for hl in hidden_layer)
     nn_arq += f'-{output_layer}]'
 
-    # Results
-    print(f"\n{nn_arq}, epochs: {epochs}, batch size: {batch_size}, learning rate: {learning_rate} \
-            \nTraining Loss:\t{output['training_losses'][-1]:.3} \
-            \nTraining Acc.:\t{output['training_accuracies'][-1]:.3%} \
-            \nTest Acc.:\t{test_accuracy:.3%}\n")
+    number_epochs = [10]
+    learning_rate = 1e-3
+
+    for epochs in number_epochs:
+
+        # Setup NN
+        mlp = MLP(input_layer, hidden_layer, output_layer)
+
+        # Train
+        output = mlp.train(mnist, epochs, learning_rate)
+
+        # Inference
+        test_probabilities = mlp.forward(test_data[0])
+        test_predictions = np.argmax(test_probabilities, axis=1)
+
+        # Accuracy
+        test_accuracy = np.mean(test_predictions == test_data[1])
+
+        # Results
+        print(f"\n{nn_arq}, epochs: {epochs}, batch size: {batch_size}, learning rate: {learning_rate} \
+                \nTraining Loss:\t{output['training_losses'][-1]:.3} \
+                \nTraining Acc.:\t{output['training_accuracies'][-1]:.3%} \
+                \nTest Acc.:\t{test_accuracy:.3%}\n")
