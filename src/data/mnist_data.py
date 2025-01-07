@@ -44,12 +44,6 @@ class MNISTDatasetManager(object):
         Args:
             filepath (str): Path to the file or directory containing the label raw data.
 
-        Returns:
-            np.ndarray: Array of labels, where each label is an integer (e.g., 0 to 9).
-
-        Raises:
-            ValueError: If the file's magic number does not match the expected value (2049).
-
         File Format:
             The label file format is as follows:
             - Offset 0000: Magic number (4 bytes; 3rd byte indicates data type, 4th byte indicates dimensions).
