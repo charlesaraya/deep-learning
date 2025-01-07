@@ -12,13 +12,13 @@ np.random.seed(42) # For reproducibility
 #   - https://yann.lecun.com/exdb/mnist/
 #
 class MNISTDatasetManager(object):
-    def __init__(self, batch_size: None | int):
+    def __init__(self, batch_size: int):
         """MNIST Dataset Manager.
 
         Args:
             batch_size (int): Number of train samples used per batch.
         """
-        self.batch_size = batch_size if batch_size else 
+        self.batch_size = batch_size
         self.train_data = None
         self.test_data = None
         self.validation_data = None
