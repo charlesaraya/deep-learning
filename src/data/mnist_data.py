@@ -3,6 +3,7 @@ from typing import Literal
 import struct
 from array import array
 import random
+from math import ceil
 import matplotlib.pyplot as plt
 
 np.random.seed(42) # For reproducibility
@@ -26,7 +27,7 @@ class MNISTDatasetManager(object):
         
         images, labels = self.train_data
         data_length = images.shape[0]
-        self.total_batches = -(data_length // -self.batch_size) # def ceildiv(a, b): return -(a // -b)
+        self.total_batches = ceil(data_length / self.batch_size)
 
         data_indices = np.arange(data_length)
         for start_idx in range(0, len(images), self.batch_size):
