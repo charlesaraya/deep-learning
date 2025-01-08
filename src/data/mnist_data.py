@@ -2,7 +2,6 @@ import numpy as np
 import struct
 from array import array
 import random
-from PIL import Image, ImageOps
 import matplotlib.pyplot as plt
 
 np.random.seed(42) # For reproducibility
