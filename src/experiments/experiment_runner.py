@@ -76,8 +76,8 @@ class ExperimentRunner(object):
     def log_results(self, train_results, test_accuracy):
         """Logs the results of the experiment."""
         model_name = self._create_model_name()
-        print(f"\n{model_name}, epochs: {self.config['epochs']}, batch size: {self.config['batch_size']}, \
-                learning rate: {self.config['learning_rate']} \
+        print(f"\n{model_name}, epochs: {self.config['epochs']}, batch size: {self.config['batch_size']}, " +
+                f"learning rate: {self.config['learning_rate']} \
                 \nTraining Loss:\t{train_results['training_losses'][-1]:.3} \
                 \nTraining Acc.:\t{train_results['training_accuracies'][-1]:.3%} \
                 \nTest Acc.:\t{test_accuracy:.3%}\n")
