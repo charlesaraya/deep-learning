@@ -1,5 +1,6 @@
 import numpy as np
 from data.mnist_data import MNISTDatasetManager
+from tqdm import tqdm, trange
 
 np.random.seed(42)
 
@@ -190,26 +191,36 @@ class MLP(object):
         training_accuracies, training_losses = [], []
         self.learning_rate = learning_rate
 
-        for epoch in range(epochs):
-            batch_accuracies, batch_losses = [], []
-            for X_batch, y_batch in datamanager:
-                # Forward Pass
-                y_hat = self.forward(X_batch)
+        with trange(epochs) as t:
+            for epoch in t:
+                t.set_description(f"Epoch {epoch}")
+                batch_accuracies, batch_losses = [], []
+                for X_batch, y_batch in datamanager:
+                    # Forward Pass
+                    y_hat = self.forward(X_batch)
 
-                # Calculate error in prediction using Cross-Entropy Loss function
-                loss = self.cross_entropy_loss(y_hat, y_batch)
+                    # Calculate error in prediction using Cross-Entropy Loss function
+                    loss = self.cross_entropy_loss(y_hat, y_batch)
 
-                # Backpropagation Pass: Calculate Gradients, Weights & Bias
-                self.backward(y_hat, y_batch)
+                    # Backpropagation Pass: Calculate Gradients, Weights & Bias
+                    self.backward(y_hat, y_batch)
 
-                # Monitor batch metrics
-                predictions = np.argmax(y_hat, axis=1)
-                accuracy = np.mean(predictions == np.argmax(y_batch, axis=1))
-                batch_accuracies.append(accuracy)
-                batch_losses.append(loss)
-            # Monitor epoch metrics
-            training_accuracies.append(np.mean(batch_accuracies))
-            training_losses.append(np.mean(batch_losses))
+                    # Monitor batch metrics
+                    predictions = np.argmax(y_hat, axis=1)
+                    accuracy = np.mean(predictions == np.argmax(y_batch, axis=1))
+                    batch_accuracies.append(accuracy)
+                    batch_losses.append(loss)
+                # Monitor epoch metrics
+                epoch_loss = batch_losses[-1]
+                epoch_accuracy = batch_accuracies[-1]
+                training_accuracies.append(epoch_accuracy)
+                training_losses.append(epoch_loss)
+
+                # Monitoring
+                t.set_postfix(
+                    tLoss=epoch_loss,
+                    tAcc=epoch_accuracy*100
+                )
 
         return {
             'weights': self.weights,
