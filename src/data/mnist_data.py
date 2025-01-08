@@ -91,7 +91,7 @@ class MNISTDatasetManager(object):
 
         return images
 
-    def load_data(self, images_filepath: str, labels_filepath: str, type: str):
+    def load_data(self, images_filepath: str, labels_filepath: str, type: str = Literal['train', 'test']):
         """Loads training or test datasets by combining images and labels.
         
         Args:
