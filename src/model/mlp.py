@@ -1,4 +1,7 @@
 import numpy as np
+from data.mnist_data import MNISTDatasetManager
+
+np.random.seed(42)
 
 class MLP(object):
     """A simple implementation of a Multi-Layer Perceptron (MLP) for basic machine learning tasks."""
@@ -14,6 +17,8 @@ class MLP(object):
         self.hidden_layer = hidden_layer
         self.nlayers = len(hidden_layer) + 1 # hidden layers + output layer
         
+        self.activation_fn = self.tanh_activation
+
         # Init hidden layers weights and bias
         self.weights, self.biases = [], []
         prev_dim = input_layer
@@ -27,24 +32,8 @@ class MLP(object):
         self.biases.append(np.zeros((1, output_layer)))
         self.dW = [0] * self.nlayers
         self.db = [0] * self.nlayers
-
-    def one_hot_encode(self, y_target):
-        """Encodes each target label class into its one-hot format.
-
-        Args:
-            y_target (ndarray): Array of integers representing the target labels.
-
-        Returns:
-            ndarray: Array of float arrays representing the one-hot encoded vector of the target labels.
-        """
-        nlabels = max(y_target) + 1
-        y_encoded  = []
-        for yi in y_target:
-            y_encoded.append(np.zeros(nlabels))
-            y_encoded[-1][yi] = 1
-        return np.asarray(y_encoded)
     
-    def cross_entropy_loss(self, y_hat, y):
+    def cross_entropy_loss(self, y_hat: np.ndarray, y: np.ndarray) -> float:
         """Computes the cross-entropy loss between predicted probabilities and true labels.
 
             Args:
@@ -55,16 +44,62 @@ class MLP(object):
                 float: The cross-entropy loss averaged across all samples.
         """
         epsilon = 1e-8
-        loss = -np.mean(np.sum(y * np.log(y_hat + epsilon), axis=1)) # Add epsilon for stability
-        return loss
+        loss = -y * np.log(y_hat + epsilon) # Add epsilon for stability
+        loss_batch = np.sum(loss) / y.shape[0]
+        return loss_batch
 
-    def sigmoid_activation(self, Z, derivative: bool = False):
-        """Applies Sigmoid activation function to the input."""
+    def sigmoid_activation(self, Z: np.ndarray, derivative: bool = False) -> np.ndarray:
+        """Applies Sigmoid activation function to the input.
+
+        The Sigmoid activation function maps input values to the range (0, 1), useful for 
+        modeling probabilities. 
+
+        Args:
+            Z (ndarray): Input array, typically a pre-activation value (logits) from a layer.
+            derivative (bool, optional): Computes the derivative of the Sigmoid function instead of the activation itself.
+
+        Returns:
+            ndarray: Output array with the activation value or derivative for the layer.
+        """
         if derivative:
-            return Z * (1 - Z)
-        return 1 / (1 + np.exp(-Z))
+            return Z * (1. - Z)
+        return 1. / (1. + np.exp(-Z))
+    
+    def tanh_activation(self, Z: np.ndarray, derivative: bool = False) -> np.ndarray:
+        """Applies Tanh activation function to the input.
 
-    def softmax_activation(self, Z):
+        The Sigmoid activation function maps input values to the range (-1, 1), useful for 
+        dealing with negative values more effectively. 
+
+        Args:
+            Z (ndarray): Input array, typically a pre-activation value (logits) from a layer.
+            derivative (bool, optional): Computes the derivative of the Sigmoid function instead of the activation itself.
+
+        Returns:
+            ndarray: Output array with the activation value or derivative for the layer.
+        """
+        tanh = np.divide(np.exp(Z) - np.exp(-Z), np.exp(Z) + np.exp(-Z)) # shortcut: np.tanh(Z)
+        if derivative:
+            return 1. - tanh**2
+        return tanh
+
+    def relu_activation(self, Z: np.ndarray, derivative: bool = False) -> np.ndarray:
+        """Applies ReLU activation function to the input.
+
+        A ReLU (Rectified Linear Unit) activation function is linear in the positive dimension, but zero in the negative dimension. 
+
+        Args:
+            Z (ndarray): Input array, typically a pre-activation value (logits) from a layer.
+            derivative (bool, optional): Computes the derivative of the Sigmoid function instead of the activation itself.
+
+        Returns:
+            ndarray: Output array with the activation value or derivative for the layer.
+        """
+        if derivative:
+            return np.where(Z < 0, 0, 1.)
+        return np.maximum(0, Z)
+
+    def softmax_activation(self, Z: np.ndarray) -> np.ndarray:
         """Applies Softmax activation function to the input.
         
         The softmax function converts logits (raw scores) into a probability distribution, 
@@ -80,7 +115,7 @@ class MLP(object):
         y_hat = exp_x / np.sum(exp_x, axis=1, keepdims=True) # predicted probability for each class
         return y_hat
 
-    def forward(self, X):
+    def forward(self, X: np.ndarray) -> np.ndarray:
         """Performs the forward pass through the network.
 
         Args:
@@ -99,7 +134,7 @@ class MLP(object):
             # Linear Transform (Weighted Sum) Layer
             Z = np.dot(self.logits[-1], self.weights[i]) + self.biases[i]
             # Sigmoid Activation Layer
-            h = self.sigmoid_activation(Z)
+            h = self.activation_fn(Z)
             self.logits.append(h)
 
         # Output Layer
@@ -108,7 +143,7 @@ class MLP(object):
         y_hat = self.softmax_activation(Z)
         return y_hat
 
-    def backward(self, y_hat, y):
+    def backward(self, y_hat: np.ndarray, y: np.ndarray) -> None:
         """Performs the backward pass through the network.
         
         Computing the gradients of the loss w.r.t. the model parameters, and updates the weights and biases.
@@ -119,32 +154,29 @@ class MLP(object):
         """
 
         # Gradient of the loss w.r.t. predictions
-        grad_loss = y_hat  - y
-        dinput = grad_loss / y.shape[0]
+        dloss = (y_hat  - y) / y.shape[0]
 
         for i in reversed(range(self.nlayers)):
             if i < len(self.hidden_layer): # Skip output layer
-                dinput = dinput * self.sigmoid_activation(self.logits[i+1], derivative=True)
+                dloss = dloss * self.activation_fn(self.logits[i+1], derivative=True)
 
-            self.dW[i] = np.dot(self.logits[i].T, dinput)
-            self.db[i] = np.sum(dinput, axis=0, keepdims=False)
+            self.dW[i] = np.dot(self.logits[i].T, dloss)
+            self.db[i] = np.sum(dloss, axis=0, keepdims=False)
 
-            dinput = np.dot(dinput, self.weights[i].T)
+            dloss = np.dot(dloss, self.weights[i].T)
         
         # Update weights and biases
         for i in range(self.nlayers):
             self.weights[i] -= self.learning_rate * self.dW[i]
             self.biases[i] -= self.learning_rate * self.db[i]
 
-    def train(self, train_data, epochs, learning_rate):
+    def train(self, datamanager: MNISTDatasetManager, epochs: int, learning_rate: float) -> dict:
         """Trains the MLP on the training data.
         
         Performs forward and backward passes at a given learning rate, and over a number of epochs.
 
         Args:
-            train_data (tuple): A tuple containing the training data, where:
-                - X (ndarray): The input data.
-                - y (ndarray): The true target labels that exist in the classification task.
+            datamanager (MNISTDatasetManager): A DataManager class containing the training and validation data, as well as an iterator for mini-batch.
             epochs (int): The number of times the model will iterate over the entire training dataset.
             learning_rate (float): The learning rate used for gradient descent to update the model parameters.
 
@@ -158,78 +190,92 @@ class MLP(object):
         training_accuracies, training_losses = [], []
         self.learning_rate = learning_rate
 
-        X = train_data[0]
-        y = self.one_hot_encode(train_data[1])
-    
         for epoch in range(epochs):
-            # Forward Pass
-            y_hat = self.forward(X)
+            batch_accuracies, batch_losses = [], []
+            for X_batch, y_batch in datamanager:
+                # Forward Pass
+                y_hat = self.forward(X_batch)
 
-            # Calculate error in prediction using Cross-Entropy Loss function
-            loss = self.cross_entropy_loss(y_hat, y)
-            
-            # Backpropagation Pass: Calculate Gradients, Weights & Bias
-            self.backward(y_hat, y)
+                # Calculate error in prediction using Cross-Entropy Loss function
+                loss = self.cross_entropy_loss(y_hat, y_batch)
 
-            # Monitor Accuracy and Loss
-            predictions = np.argmax(y_hat, axis=1)
-            accuracy = np.mean(predictions == np.argmax(y, axis=1))
-            training_accuracies.append(accuracy)
-            training_losses.append(loss)
-        
+                # Backpropagation Pass: Calculate Gradients, Weights & Bias
+                self.backward(y_hat, y_batch)
+
+                # Monitor batch metrics
+                predictions = np.argmax(y_hat, axis=1)
+                accuracy = np.mean(predictions == np.argmax(y_batch, axis=1))
+                batch_accuracies.append(accuracy)
+                batch_losses.append(loss)
+            # Monitor epoch metrics
+            training_accuracies.append(np.mean(batch_accuracies))
+            training_losses.append(np.mean(batch_losses))
+
         return {
             'weights': self.weights,
             'bias': self.biases,
             'training_accuracies': training_accuracies,
             'training_losses': training_losses
         }
+    
+if __name__ == "__main__":
 
-if __name__ == '__main__':
-    import pandas as pd
+    # Set file paths based on added MNIST Datasets
+    config = {
+        'train_images_filepath': './data/MNIST/train-images',
+        'train_labels_filepath': './data/MNIST/train-labels',
+        'test_images_filepath': './data/MNIST/test-images',
+        'test_labels_filepath': './data/MNIST/test-labels',
+        'metrics_filepath': './plots/metrics/',
+    }
 
-    # Data Prep
-    df = pd.read_csv('data/Iris/iris.csv', header=None)
-    df[5] = pd.Categorical(df[4]).codes
-    # Sample test and train data
-    test_ratio = 0.2
-    test_data = df.sample(frac=test_ratio, random_state=8000)
-    train_data = df.drop(test_data.index)
-    # Train Dataset
-    x_inputs_train = train_data.iloc[:, 0:4].values
-    y_target_output_train = np.array(train_data[5])
-    train_data = (x_inputs_train, y_target_output_train)
-    # Test Dataset
-    x_inputs_test = test_data.iloc[:,0:4].values
-    y_target_output_test = np.array(test_data[5])
-    test_data = (x_inputs_test, y_target_output_test)
+    # Load MINST dataset
+    batch_size = 64
+    mnist = MNISTDatasetManager(batch_size)
 
-    # Hyperparameters
-    input_layer = 4
+    mnist.load_data(
+        config['train_images_filepath'],
+        config['train_labels_filepath'],
+        'train'
+        )
+    mnist.load_data(
+        config['test_images_filepath'],
+        config['test_labels_filepath'],
+        'test'
+        )
+
+    train_data = mnist.prepdata('train', shuffle=True, validation_len=10000)
+    test_data = mnist.prepdata('test')
+
+    # Architecture
+    input_layer = train_data[0].shape[1]
     hidden_layer = [64]
-    output_layer = 3
-    learning_rate = 0.01
-    epochs = 2000
-
-    # NN Setup
-    p = MLP(input_layer, hidden_layer, output_layer)
-
-    # Training
-    output = p.train((x_inputs_train, y_target_output_train), epochs, learning_rate)
-
-    # Inference
-    test_probabilities = p.forward(test_data[0])
-    test_predictions = np.argmax(test_probabilities, axis=1)
-
-    # Accuracy
-    test_accuracy = np.mean(test_predictions == test_data[1])
-
+    output_layer = train_data[1].shape[1]
     # i.e "mlp_model[in-hl-hl-out]" 
     nn_arq = f'mlp_model[{input_layer}'
     nn_arq += ''.join(f'-{hl}' for hl in hidden_layer)
     nn_arq += f'-{output_layer}]'
 
-    # Results
-    print(f"\n{nn_arq}, epochs: {epochs}, learning rate: {learning_rate} \
-            \nTraining Loss:\t{output['training_losses'][-1]:.3} \
-            \nTraining Acc.:\t{output['training_accuracies'][-1]:.3%} \
-            \nTest Acc.:\t{test_accuracy:.3%}\n")
+    number_epochs = [10]
+    learning_rate = 1e-3
+
+    for epochs in number_epochs:
+
+        # Setup NN
+        mlp = MLP(input_layer, hidden_layer, output_layer)
+
+        # Train
+        output = mlp.train(mnist, epochs, learning_rate)
+
+        # Inference
+        test_probabilities = mlp.forward(test_data[0])
+        test_predictions = np.argmax(test_probabilities, axis=1)
+
+        # Accuracy
+        test_accuracy = np.mean(test_predictions == test_data[1])
+
+        # Results
+        print(f"\n{nn_arq}, epochs: {epochs}, batch size: {batch_size}, learning rate: {learning_rate} \
+                \nTraining Loss:\t{output['training_losses'][-1]:.3} \
+                \nTraining Acc.:\t{output['training_accuracies'][-1]:.3%} \
+                \nTest Acc.:\t{test_accuracy:.3%}\n")
