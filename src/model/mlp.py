@@ -2,6 +2,9 @@ import numpy as np
 from data.mnist_data import MNISTDatasetManager
 from tqdm import tqdm, trange
 
+from layers.activations import ACTIVATION_FN
+import layers.losses as loss_fn
+
 np.random.seed(42)
 
 class MLP:
@@ -18,7 +21,7 @@ class MLP:
         self.hidden_layer = hidden_layer
         self.nlayers = len(hidden_layer) + 1 # hidden layers + output layer
         
-        self.activation_fn = self.tanh_activation
+        self.activation_fn = ACTIVATION_FN['tanh']
 
         # Init hidden layers weights and bias
         self.weights, self.biases = [], []
@@ -33,88 +36,6 @@ class MLP:
         self.biases.append(np.zeros((1, output_layer)))
         self.dW = [0] * self.nlayers
         self.db = [0] * self.nlayers
-    
-    def cross_entropy_loss(self, y_hat: np.ndarray, y: np.ndarray) -> float:
-        """Computes the cross-entropy loss between predicted probabilities and true labels.
-
-            Args:
-                y_hat (ndarray): Predicted probabilities from the forward pass.
-                y (ndarray): The true target labels for each training sample.
-
-            Returns:
-                float: The cross-entropy loss averaged across all samples.
-        """
-        epsilon = 1e-8
-        loss = -y * np.log(y_hat + epsilon) # Add epsilon for stability
-        loss_batch = np.sum(loss) / y.shape[0]
-        return loss_batch
-
-    def sigmoid_activation(self, Z: np.ndarray, derivative: bool = False) -> np.ndarray:
-        """Applies Sigmoid activation function to the input.
-
-        The Sigmoid activation function maps input values to the range (0, 1), useful for 
-        modeling probabilities. 
-
-        Args:
-            Z (ndarray): Input array, typically a pre-activation value (logits) from a layer.
-            derivative (bool, optional): Computes the derivative of the Sigmoid function instead of the activation itself.
-
-        Returns:
-            ndarray: Output array with the activation value or derivative for the layer.
-        """
-        if derivative:
-            return Z * (1. - Z)
-        return 1. / (1. + np.exp(-Z))
-    
-    def tanh_activation(self, Z: np.ndarray, derivative: bool = False) -> np.ndarray:
-        """Applies Tanh activation function to the input.
-
-        The Sigmoid activation function maps input values to the range (-1, 1), useful for 
-        dealing with negative values more effectively. 
-
-        Args:
-            Z (ndarray): Input array, typically a pre-activation value (logits) from a layer.
-            derivative (bool, optional): Computes the derivative of the Sigmoid function instead of the activation itself.
-
-        Returns:
-            ndarray: Output array with the activation value or derivative for the layer.
-        """
-        tanh = np.divide(np.exp(Z) - np.exp(-Z), np.exp(Z) + np.exp(-Z)) # shortcut: np.tanh(Z)
-        if derivative:
-            return 1. - tanh**2
-        return tanh
-
-    def relu_activation(self, Z: np.ndarray, derivative: bool = False) -> np.ndarray:
-        """Applies ReLU activation function to the input.
-
-        A ReLU (Rectified Linear Unit) activation function is linear in the positive dimension, but zero in the negative dimension. 
-
-        Args:
-            Z (ndarray): Input array, typically a pre-activation value (logits) from a layer.
-            derivative (bool, optional): Computes the derivative of the Sigmoid function instead of the activation itself.
-
-        Returns:
-            ndarray: Output array with the activation value or derivative for the layer.
-        """
-        if derivative:
-            return np.where(Z < 0, 0, 1.)
-        return np.maximum(0, Z)
-
-    def softmax_activation(self, Z: np.ndarray) -> np.ndarray:
-        """Applies Softmax activation function to the input.
-        
-        The softmax function converts logits (raw scores) into a probability distribution, 
-        ensuring that the output values are in the range [0, 1] and sum to 1 across each sample.
-
-        Args:
-            Z (ndarray): Input array (logits). Each row corresponds to the raw scores for a single sample across all classes.
-
-        Returns:
-            ndarray: Output array with softmax probabilities. Each row represents a valid probability distribution.
-        """
-        exp_x = np.exp(Z - np.max(Z, axis=1, keepdims=True))
-        y_hat = exp_x / np.sum(exp_x, axis=1, keepdims=True) # predicted probability for each class
-        return y_hat
 
     def forward(self, X: np.ndarray) -> np.ndarray:
         """Performs the forward pass through the network.
@@ -141,7 +62,7 @@ class MLP:
         # Output Layer
         Z = np.dot(self.logits[-1], self.weights[-1]) + self.biases[-1]
         self.logits.append(Z)
-        y_hat = self.softmax_activation(Z)
+        y_hat = ACTIVATION_FN['softmax'](Z)
         return y_hat
 
     def backward(self, y_hat: np.ndarray, y: np.ndarray) -> None:
@@ -200,7 +121,7 @@ class MLP:
                     y_hat = self.forward(X_batch)
 
                     # Calculate error in prediction using Cross-Entropy Loss function
-                    loss = self.cross_entropy_loss(y_hat, y_batch)
+                    loss = loss_fn.cross_entropy_loss(y_hat, y_batch)
 
                     # Backpropagation Pass: Calculate Gradients, Weights & Bias
                     self.backward(y_hat, y_batch)
@@ -225,7 +146,7 @@ class MLP:
                     val_accuracy = np.mean(val_predictions == val_labels)
                     validation_accuracies.append(val_accuracy)
                     # Loss
-                    val_loss = self.cross_entropy_loss(val_probabilities, datamanager.validation_data[1])
+                    val_loss = loss_fn.cross_entropy_loss(val_probabilities, datamanager.validation_data[1])
                     validation_losses.append(val_loss)
 
                 # Monitoring Metrics
