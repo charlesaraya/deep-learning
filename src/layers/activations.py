@@ -51,7 +51,7 @@ def relu_activation(Z: np.ndarray, derivative: bool = False) -> np.ndarray:
         return np.where(Z < 0, 0, 1.)
     return np.maximum(0, Z)
 
-def softmax_activation(Z: np.ndarray) -> np.ndarray:
+def softmax_activation(Z: np.ndarray, derivative: bool = False) -> np.ndarray:
     """Applies Softmax activation function to the input.
     
     The softmax function converts logits (raw scores) into a probability distribution, 
@@ -63,6 +63,8 @@ def softmax_activation(Z: np.ndarray) -> np.ndarray:
     Returns:
         ndarray: Output array with softmax probabilities. Each row represents a valid probability distribution.
     """
+    if derivative:
+        return 1
     exp_x = np.exp(Z - np.max(Z, axis=1, keepdims=True))
     y_hat = exp_x / np.sum(exp_x, axis=1, keepdims=True) # predicted probability for each class
     return y_hat
