@@ -25,7 +25,7 @@ def tanh_activation(Z: np.ndarray, derivative: bool = False) -> np.ndarray:
 
     Args:
         Z (ndarray): Input array, typically a pre-activation value (logits) from a layer.
-        derivative (bool, optional): Computes the derivative of the Sigmoid function instead of the activation itself.
+        derivative (bool, optional): Computes the derivative of the Tanh function instead of the activation itself.
 
     Returns:
         ndarray: Output array with the activation value or derivative for the layer.
@@ -42,7 +42,7 @@ def relu_activation(Z: np.ndarray, derivative: bool = False) -> np.ndarray:
 
     Args:
         Z (ndarray): Input array, typically a pre-activation value (logits) from a layer.
-        derivative (bool, optional): Computes the derivative of the Sigmoid function instead of the activation itself.
+        derivative (bool, optional): Computes the derivative of the Relu function instead of the activation itself.
 
     Returns:
         ndarray: Output array with the activation value or derivative for the layer.

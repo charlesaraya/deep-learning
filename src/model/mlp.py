@@ -4,6 +4,8 @@ from tqdm import tqdm, trange
 
 from layers.activations import ACTIVATION_FN
 import layers.losses as loss_fn
+from layers.batchnorm import BatchNorm
+from layers.regularizations import Dropout
 
 np.random.seed(42)
 
@@ -23,12 +25,17 @@ class MLP:
         
         self.activation_fn = ACTIVATION_FN['tanh']
 
-        # Init hidden layers weights and bias
+        # Init hidden layers
         self.weights, self.biases = [], []
+        self.batchnorm_layers: list[BatchNorm] = []
+        self.dropout_layers: list[Dropout] = []
+
         prev_dim = input_layer
         for dim in self.hidden_layer:
             self.weights.append(np.random.randn(prev_dim, dim) * 0.1)
             self.biases.append(np.zeros((1, dim)))
+            self.batchnorm_layers.append(BatchNorm(dim))
+            self.dropout_layers.append(Dropout(0.5))
             prev_dim = dim
 
         # Init output layer and gradients w.r.t the weights and bias
@@ -55,8 +62,12 @@ class MLP:
         for i in range(len(self.hidden_layer)):
             # Linear Transform (Weighted Sum) Layer
             Z = np.dot(self.logits[-1], self.weights[i]) + self.biases[i]
+            # BatchNorm Layer
+            Z = self.batchnorm_layers[i].forward(Z)
             # Sigmoid Activation Layer
             h = self.activation_fn(Z)
+            # Dropout Layer
+            h = self.dropout_layers[i].forward(h)
             self.logits.append(h)
 
         # Output Layer
@@ -80,7 +91,9 @@ class MLP:
 
         for i in reversed(range(self.nlayers)):
             if i < len(self.hidden_layer): # Skip output layer
+                dloss = self.dropout_layers[i].backward(dloss)
                 dloss = dloss * self.activation_fn(self.logits[i+1], derivative=True)
+                dloss = self.batchnorm_layers[i].backward(dloss)
 
             self.dW[i] = np.dot(self.logits[i].T, dloss)
             self.db[i] = np.sum(dloss, axis=0, keepdims=False)
@@ -91,6 +104,10 @@ class MLP:
         for i in range(self.nlayers):
             self.weights[i] -= self.learning_rate * self.dW[i]
             self.biases[i] -= self.learning_rate * self.db[i]
+        # Update BatchNorm's learning parameters gamma and beta
+        for i, bn in enumerate(self.batchnorm_layers):
+            bn.gamma -= bn.dgamma * self.learning_rate
+            bn.beta -= bn.dbeta * self.learning_rate
 
     def train(self, datamanager: MNISTDatasetManager, epochs: int, learning_rate: float) -> dict:
         """Trains the MLP on the training data.
@@ -204,7 +221,7 @@ if __name__ == "__main__":
     nn_arq += ''.join(f'-{hl}' for hl in hidden_layer)
     nn_arq += f'-{output_layer}]'
 
-    number_epochs = [10]
+    number_epochs = [20]
     learning_rate = 1e-3
 
     for epochs in number_epochs:
