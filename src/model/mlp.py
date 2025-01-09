@@ -4,6 +4,7 @@ from tqdm import tqdm, trange
 
 from layers.activations import ACTIVATION_FN
 import layers.losses as loss_fn
+from layers.batchnorm import BatchNorm
 
 np.random.seed(42)
 
@@ -23,12 +24,15 @@ class MLP:
         
         self.activation_fn = ACTIVATION_FN['tanh']
 
-        # Init hidden layers weights and bias
+        # Init hidden layers
         self.weights, self.biases = [], []
+        self.batch_norm_layers: list[BatchNorm] = []
+
         prev_dim = input_layer
         for dim in self.hidden_layer:
             self.weights.append(np.random.randn(prev_dim, dim) * 0.1)
             self.biases.append(np.zeros((1, dim)))
+            self.batch_norm_layers.append(BatchNorm(dim))
             prev_dim = dim
 
         # Init output layer and gradients w.r.t the weights and bias
@@ -55,6 +59,8 @@ class MLP:
         for i in range(len(self.hidden_layer)):
             # Linear Transform (Weighted Sum) Layer
             Z = np.dot(self.logits[-1], self.weights[i]) + self.biases[i]
+            # BatchNorm Layer
+            Z = self.batch_norm_layers[i].forward(Z)
             # Sigmoid Activation Layer
             h = self.activation_fn(Z)
             self.logits.append(h)
@@ -81,6 +87,7 @@ class MLP:
         for i in reversed(range(self.nlayers)):
             if i < len(self.hidden_layer): # Skip output layer
                 dloss = dloss * self.activation_fn(self.logits[i+1], derivative=True)
+                dloss = self.batch_norm_layers[i].backward(dloss)
 
             self.dW[i] = np.dot(self.logits[i].T, dloss)
             self.db[i] = np.sum(dloss, axis=0, keepdims=False)
@@ -91,6 +98,10 @@ class MLP:
         for i in range(self.nlayers):
             self.weights[i] -= self.learning_rate * self.dW[i]
             self.biases[i] -= self.learning_rate * self.db[i]
+        # Update BatchNorm's learning parameters gamma and beta
+        for i, bn in enumerate(self.batch_norm_layers):
+            bn.gamma -= bn.dgamma * self.learning_rate
+            bn.beta -= bn.dbeta * self.learning_rate
 
     def train(self, datamanager: MNISTDatasetManager, epochs: int, learning_rate: float) -> dict:
         """Trains the MLP on the training data.
