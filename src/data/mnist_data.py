@@ -1,12 +1,14 @@
 import numpy as np
+from typing import Literal
 import struct
 from array import array
 import random
+from math import ceil
 import matplotlib.pyplot as plt
 
 np.random.seed(42) # For reproducibility
 
-class MNISTDatasetManager(object):
+class MNISTDatasetManager:
     def __init__(self, batch_size: int):
         """MNIST Dataset Manager.
 
@@ -25,7 +27,7 @@ class MNISTDatasetManager(object):
         
         images, labels = self.train_data
         data_length = images.shape[0]
-        self.total_batches = -(data_length // -self.batch_size) # def ceildiv(a, b): return -(a // -b)
+        self.total_batches = ceil(data_length / self.batch_size)
 
         data_indices = np.arange(data_length)
         for start_idx in range(0, len(images), self.batch_size):
@@ -89,7 +91,7 @@ class MNISTDatasetManager(object):
 
         return images
 
-    def load_data(self, images_filepath: str, labels_filepath: str, type: str):
+    def load_data(self, images_filepath: str, labels_filepath: str, type: str = Literal['train', 'test']):
         """Loads training or test datasets by combining images and labels.
         
         Args:
@@ -124,51 +126,65 @@ class MNISTDatasetManager(object):
             labels_encoded[-1][label] = 1
         return np.asarray(labels_encoded)
 
-    def prepdata(self, type: str, shuffle: bool = False, validation_len: int = None):
-        """Returns preprocessed the training and test datasets."""
-        match type:
-            case 'train':
-                if self.train_data is None:
-                    raise ValueError('No training data available.')
-                images, labels = self.train_data
-                labels = self.one_hot_encode(labels)
-            case 'test':
-                if self.test_data is None:
-                    raise ValueError('No test data available.')
-                images, labels = self.test_data
+    def _split_validation(self, images, labels, validation_len: int):
+        val_images = images[:validation_len]
+        val_labels = labels[:validation_len]
+        self.validation_data = (val_images, val_labels)
+
+        images = images[validation_len:]
+        labels = labels[validation_len:]
+        return images, labels
+
+    def prepdata(
+            self,
+            type: str = Literal['train', 'test'],
+            shuffle: bool = False,
+            validation_len: int = None
+        ):
+        """Prepares and preprocesses the MNIST dataset for training or testing.
+
+        Flattens and Normalizes image pixel values, optionally shuffles the data, and 
+        splits a validation set from the training data.
+        Args:
+            type (str): Specifies the dataset type (one of 'train' or 'test')
+            shuffle (bool, optional): Shuffles the dataset.
+            validation_len (int, optional): The number of samples to allocate for a validation set.
+
+        Returns:
+            tuple: A tuple 2D np.ndarray's (images, labels).
+        """
+        if type == 'train':
+            if self.train_data is None:
+                raise ValueError('No training data available.')
+            images, labels = self.train_data
+            labels = self.one_hot_encode(labels)
+        else:
+            if self.test_data is None:
+                raise ValueError('No test data available.')
+            images, labels = self.test_data
 
         # Prep Data
-        data_length, N, M = images.shape
-        images = images.reshape(data_length, N * M)   # Flatten 28x28 images into 784 units.
+        num_samples, num_rows, num_cols = images.shape
+        images = images.reshape(num_samples, num_rows * num_cols)   # Flatten 28x28 images into 784 units.
 
         # Normalioze
         images = np.divide(images, 255.0)
 
         # Shuffle data
         if shuffle:
-            data_indices = np.arange(data_length)
-            np.random.shuffle(data_indices)
-            images = images[data_indices]
-            labels = labels[data_indices]
+            indices = np.arange(num_samples)
+            np.random.shuffle(indices)
+            images = images[indices]
+            labels = labels[indices]
 
-        # Prep validation Data
-        if validation_len:
-            indices = np.arange(data_length)
-            # Split validation set from the training set
-            val_images = images[indices[:validation_len]]
-            val_labels = labels[indices[:validation_len]]
-            self.validation_data = (val_images, val_labels)
+        if type == 'train':
+            if validation_len:
+                images, labels = self._split_validation(images, labels, validation_len)
+            self.train_data = images, labels
+        else:
+            self.test_data = images, labels
 
-            images = images[indices[validation_len:]]
-            labels = labels[indices[validation_len:]]
-
-        match type:
-            case 'train':
-                self.train_data = images, labels
-                return self.train_data
-            case 'test':
-                self.test_data = images, labels
-                return self.test_data
+        return images, labels
 
 def plot_images(images: list[np.ndarray], titles: list[str], rows: int, cols: int, reshape: None | tuple[int, int], cmap: plt.cm = plt.cm.gray):
     """Helper function to plot a list of images with their relating titles"""
@@ -222,6 +238,7 @@ if __name__ == "__main__":
         )
     
     (x_train, y_train) = mnist.prepdata('train', shuffle = True, validation_len = 10000)
+    y_train = np.argmax(y_train, axis=1) # decode
     (x_test, y_test) = mnist.prepdata('test')
 
     # Show some random training and test images 

@@ -1,6 +1,7 @@
 # Directories
 /data/
 /plots/
+/results/
 
 # Commit msg
 commit-message.txt
