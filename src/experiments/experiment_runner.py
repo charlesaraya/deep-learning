@@ -76,11 +76,15 @@ class ExperimentRunner(object):
     def log_results(self, train_results, test_accuracy):
         """Logs the results of the experiment."""
         model_name = self._create_model_name()
-        print(f"\n{model_name}, epochs: {self.config['epochs']}, batch size: {self.config['batch_size']}, " +
-                f"learning rate: {self.config['learning_rate']} \
+        print(f"\n{model_name}, Epochs: {self.config['epochs']}, Batch size: {self.config['batch_size']}, " +
+                f"Learning rate: {self.config['learning_rate']} \
+                \n{"─" * 15} Loss {"─" * 20} \
                 \nTraining Loss:\t{train_results['training_losses'][-1]:.3} \
+                \nValid Loss:\t{train_results['validation_losses'][-1]:.3} \
+                \n{"─" * 15} Accuracies {"─" * 15} \
                 \nTraining Acc.:\t{train_results['training_accuracies'][-1]:.3%} \
-                \nTest Acc.:\t{test_accuracy:.3%}\n")
+                \nValid Acc.:\t{train_results['validation_accuracies'][-1]:.3%} \
+                \nTest Acc.:\t{test_accuracy:.3%}\n")        
         
         experiment_filepath = os.path.join(
             self.config['log_filepath'], 

@@ -188,12 +188,12 @@ class MLP(object):
             - 'training_accuracies' (list): Training accuracy values recorded at each epoch.
             - 'training_losses' (list): Training loss values recorded at each epoch.
         """
-        training_accuracies, training_losses = [], []
+        training_accuracies, training_losses, validation_accuracies, validation_losses = [], [], [], []
         self.learning_rate = learning_rate
 
         with trange(epochs) as t:
             for epoch in t:
-                t.set_description(f"Epoch {epoch}")
+                t.set_description(f"Epoch {epoch}") # Monitor epoch progress in terminal
                 batch_accuracies, batch_losses = [], []
                 for X_batch, y_batch in datamanager:
                     # Forward Pass
@@ -216,17 +216,33 @@ class MLP(object):
                 training_accuracies.append(epoch_accuracy)
                 training_losses.append(epoch_loss)
 
-                # Monitoring
+                # Validation
+                if datamanager.validation_data:
+                    # Accuracy
+                    val_probabilities = self.forward(datamanager.validation_data[0])
+                    val_predictions = np.argmax(val_probabilities, axis=1)
+                    val_labels = np.argmax(datamanager.validation_data[1], axis=1)
+                    val_accuracy = np.mean(val_predictions == val_labels)
+                    validation_accuracies.append(val_accuracy)
+                    # Loss
+                    val_loss = self.cross_entropy_loss(val_probabilities, datamanager.validation_data[1])
+                    validation_losses.append(val_loss)
+
+                # Monitoring Metrics
                 t.set_postfix(
-                    tLoss=epoch_loss,
-                    tAcc=epoch_accuracy*100
+                    tLoss = epoch_loss,
+                    tAcc = epoch_accuracy*100,
+                    vLoss = val_loss,
+                    vAcc = val_accuracy*100
                 )
 
         return {
             'weights': self.weights,
             'bias': self.biases,
             'training_accuracies': training_accuracies,
-            'training_losses': training_losses
+            'training_losses': training_losses,
+            'validation_accuracies': validation_accuracies,
+            'validation_losses': validation_losses
         }
     
 if __name__ == "__main__":
@@ -286,7 +302,11 @@ if __name__ == "__main__":
         test_accuracy = np.mean(test_predictions == test_data[1])
 
         # Results
-        print(f"\n{nn_arq}, epochs: {epochs}, batch size: {batch_size}, learning rate: {learning_rate} \
+        print(f"\n{nn_arq}, Epochs: {epochs}, Batch size: {batch_size}, Learning rate: {learning_rate} \
+                \n{"─" * 15} Loss {"─" * 20} \
                 \nTraining Loss:\t{output['training_losses'][-1]:.3} \
+                \nValid Loss:\t{output['validation_losses'][-1]:.3} \
+                \n{"─" * 15} Accuracies {"─" * 15} \
                 \nTraining Acc.:\t{output['training_accuracies'][-1]:.3%} \
+                \nValid Acc.:\t{output['validation_accuracies'][-1]:.3%} \
                 \nTest Acc.:\t{test_accuracy:.3%}\n")
