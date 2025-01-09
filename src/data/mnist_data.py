@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 np.random.seed(42) # For reproducibility
 
-class MNISTDatasetManager(object):
+class MNISTDatasetManager:
     def __init__(self, batch_size: int):
         """MNIST Dataset Manager.
 

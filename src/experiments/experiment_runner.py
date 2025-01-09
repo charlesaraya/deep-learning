@@ -4,7 +4,7 @@ from src.data.mnist_data import MNISTDatasetManager
 import json
 import os
 
-class ExperimentRunner(object):
+class ExperimentRunner:
     def __init__(self, model: MLP, datamanager: MNISTDatasetManager, config: dict):
         self.model = model
         self.datamanager = datamanager

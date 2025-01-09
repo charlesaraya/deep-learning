@@ -4,7 +4,7 @@ from tqdm import tqdm, trange
 
 np.random.seed(42)
 
-class MLP(object):
+class MLP:
     """A simple implementation of a Multi-Layer Perceptron (MLP) for basic machine learning tasks."""
 
     def __init__(self, input_layer: int, hidden_layer: list[int], output_layer: int):
