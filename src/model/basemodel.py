@@ -123,7 +123,11 @@ class BaseModel:
                     vAcc = val_accuracy*100
                 )
                 
-        self.weights, self.biases = [(layer.weights, layer.bias) for layer in self.layers if isinstance(layer, DenseLayer)]
+        self.weights, self.biases = [], []
+        for layer in self.layers:
+            if isinstance(layer, DenseLayer):
+                self.weights.append(layer.weights)
+                self.biases.append(layer.bias)
 
         return {
             'weights': self.weights,
@@ -168,7 +172,7 @@ if __name__ == "__main__":
     hidden_layer = [512]
     output_layer = train_data[1].shape[1]
 
-    number_epochs = [20]
+    number_epochs = [10]
     learning_rate = 1e-3
 
     for epochs in number_epochs:
@@ -181,11 +185,10 @@ if __name__ == "__main__":
         mlp.add(DenseLayer(64, output_layer, activation='softmax')) """
 
         # Option 2
-        mlp.add(DenseLayer(input_layer, 512))
-        mlp.add(BatchNorm(512))
+        mlp.add(DenseLayer(input_layer, 800))
         mlp.add(Tanh())
-        mlp.add(Dropout(0.3))
-        mlp.add(DenseLayer(512, output_layer))
+        mlp.add(Dropout(0.2))
+        mlp.add(DenseLayer(800, output_layer))
         mlp.add(SoftMax())
 
         # Train
