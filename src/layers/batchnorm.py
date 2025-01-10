@@ -1,8 +1,10 @@
 import numpy as np
 
+from layers.layer import Layer
+
 EPSILON = 1e-8
 
-class BatchNorm:
+class BatchNorm(Layer):
     """Batch Normalization (BatchNorm) for deep learning models.
     
     BatchNorm normalizes the input data within each mini-batch during training and adjusts the distribution of activations.
@@ -14,6 +16,7 @@ class BatchNorm:
             dim (int): Dimension of the layer.
             momentum (float, optional): Determines how much the current mini-batch contributes to the running averages.
         """
+        super(BatchNorm, self).__init__(dim)
         self.momentum = momentum
 
         self.gamma = np.ones((1, dim))
@@ -57,7 +60,7 @@ class BatchNorm:
 
         return self.out
 
-    def backward(self, dloss) -> np.ndarray:
+    def backward(self, dloss: np.ndarray) -> np.ndarray:
         """Backward pass: computes the gradients with respect to the inputs, gamma, and beta.
 
         Args:
