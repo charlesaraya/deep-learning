@@ -139,6 +139,7 @@ class MNISTDatasetManager:
             self,
             type: str = Literal['train', 'test'],
             shuffle: bool = False,
+            transpose: bool = False,
             validation_len: int = None
         ):
         """Prepares and preprocesses the MNIST dataset for training or testing.
@@ -165,9 +166,10 @@ class MNISTDatasetManager:
 
         # Prep Data
         num_samples, num_rows, num_cols = images.shape
+        images = np.transpose(images, axes=(0,2,1)) if transpose else images  # Transpose (i.e. EMNIST)
         images = images.reshape(num_samples, num_rows * num_cols)   # Flatten 28x28 images into 784 units.
 
-        # Normalioze
+        # Normalize
         images = np.divide(images, 255.0)
 
         # Shuffle data
@@ -186,7 +188,7 @@ class MNISTDatasetManager:
 
         return images, labels
 
-def plot_images(images: list[np.ndarray], titles: list[str], rows: int, cols: int, reshape: None | tuple[int, int], cmap: plt.cm = plt.cm.gray):
+def plot_images(filepath: str, images: list[np.ndarray], titles: list[str], rows: int, cols: int, reshape: None | tuple[int, int], cmap: plt.cm = plt.cm.gray):
     """Helper function to plot a list of images with their relating titles"""
     plt.figure(figsize=(30,20))
     for i, (image, title) in enumerate(zip(images, titles)):
@@ -195,7 +197,7 @@ def plot_images(images: list[np.ndarray], titles: list[str], rows: int, cols: in
         plt.imshow(image, cmap=cmap)
         if (title != ''):
             plt.title(title, fontsize = 15)
-    plt.savefig(f'./plots/mnist_image_labels.png')
+    plt.savefig(filepath)
 
 def print_images(images: list[np.ndarray], title_texts: list[str], reshape: None | tuple[int, int], whitebg: bool = True):
     """Helper function to print a list of images with their relating titles"""
@@ -217,10 +219,12 @@ if __name__ == "__main__":
 
     # Set file paths based on added MNIST Datasets
     config = {
-        'train_images_filepath': './data/MNIST/train-images',
-        'train_labels_filepath': './data/MNIST/train-labels',
-        'test_images_filepath': './data/MNIST/test-images',
-        'test_labels_filepath': './data/MNIST/test-labels'
+        'train_images_filepath': './data/EMNISTLetters/train-images',
+        'train_labels_filepath': './data/EMNISTLetters/train-labels',
+        'test_images_filepath': './data/EMNISTLetters/test-images',
+        'test_labels_filepath': './data/EMNISTLetters/test-labels',
+        'transpose': True,
+        'filepath': './plots/data/EMNISTLetters_image_labels.png'
     }
 
     # Load MINST dataset
@@ -237,9 +241,9 @@ if __name__ == "__main__":
         'test'
         )
     
-    (x_train, y_train) = mnist.prepdata('train', shuffle = True, validation_len = 10000)
+    (x_train, y_train) = mnist.prepdata('train', shuffle = True, transpose = config['transpose'], validation_len = 10000)
     y_train = np.argmax(y_train, axis=1) # decode
-    (x_test, y_test) = mnist.prepdata('test')
+    (x_test, y_test) = mnist.prepdata('test', transpose = config['transpose'])
 
     # Show some random training and test images 
     images, titles = [], []
@@ -257,5 +261,5 @@ if __name__ == "__main__":
 
     cols = 5
     rows = int(len(images)/cols) + 1
-    plot_images(images, titles, rows, cols, reshape=(28,28), cmap=plt.cm.spring)
+    plot_images(config['filepath'], images, titles, rows, cols, reshape=(28,28), cmap=plt.cm.spring)
     print_images(images, titles, reshape=(28,28), whitebg=False)
