@@ -4,8 +4,10 @@ from tqdm import tqdm, trange
 from data.mnist_data import MNISTDatasetManager
 from layers.layer import Layer
 from layers.denselayer import DenseLayer
+from layers.regularizations import Dropout
+from layers.batchnorm import BatchNorm
 import layers.losses as loss_fn
-from layers.activations import ACTIVATION_FN
+from layers.activations import ACTIVATION_FN, Sigmoid, Tanh, SoftMax, ReLU
 
 class BaseModel:
 
@@ -18,7 +20,7 @@ class BaseModel:
 
     def __str__(self):
         self.name = f'model[{self.layers[0].shape[0]}'
-        self.name += ''.join(f'-{layer.shape[1]}' for layer in self.layers)
+        self.name += ''.join(f'-{layer.shape[1]}' for layer in self.layers if layer.shape[0] != 0)
         self.name += ']'
         return self.name
     
@@ -163,7 +165,7 @@ if __name__ == "__main__":
 
     # Architecture
     input_layer = train_data[0].shape[1]
-    hidden_layer = [64]
+    hidden_layer = [512]
     output_layer = train_data[1].shape[1]
 
     number_epochs = [20]
@@ -173,8 +175,18 @@ if __name__ == "__main__":
 
         # Setup NN
         mlp = BaseModel()
+        
+        """ # Option 1
         mlp.add(DenseLayer(input_layer, 64, activation='tanh'))
-        mlp.add(DenseLayer(64, output_layer, activation='softmax'))
+        mlp.add(DenseLayer(64, output_layer, activation='softmax')) """
+
+        # Option 2
+        mlp.add(DenseLayer(input_layer, 512))
+        mlp.add(BatchNorm(512))
+        mlp.add(Tanh())
+        mlp.add(Dropout(0.3))
+        mlp.add(DenseLayer(512, output_layer))
+        mlp.add(SoftMax())
 
         # Train
         output = mlp.train(mnist, epochs, learning_rate)

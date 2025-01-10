@@ -1,6 +1,8 @@
 import numpy as np
 
-class Dropout:
+from layers.layer import Layer
+
+class Dropout (Layer):
     """Dropout layer for regularizing neural networks.
 
     Dropout randomly deactivates a fraction of the input units during training to reduce overfitting. 
@@ -12,6 +14,7 @@ class Dropout:
         Args:
             rate (float): The dropout rate (the probability of dropping an neuron. i.e.)
         """
+        super(Dropout, self).__init__()
         if not (0 < rate < 1):
             raise ValueError("Rate must be between 0 and 1.")
         self.rate = rate
