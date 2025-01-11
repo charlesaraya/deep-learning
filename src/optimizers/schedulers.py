@@ -159,7 +159,6 @@ if __name__ == '__main__':
     warmup_steps = total_steps * warmpup_ratio
 
     base_schedulers = []
-    base_schedulers.append(LinearDecayScheduler(lr_start=lr_max, total_steps=total_steps - warmup_steps))
     base_schedulers.append(StepDecayScheduler(lr_start=lr_max, step_size=300, decay_factor=0.90))
     base_schedulers.append(ExponentialDecayScheduler(lr_start=lr_max, decay_rate=0.00025))
     base_schedulers.append(CosineAnnealingScheduler(lr_start=lr_max, total_steps=total_steps - warmup_steps, min_lr=0.0001))
