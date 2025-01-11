@@ -1,49 +1,29 @@
 import numpy as np
-from data.mnist_data import MNISTDatasetManager
 from tqdm import tqdm, trange
 
-from layers.activations import ACTIVATION_FN
-import layers.losses as loss_fn
-from layers.batchnorm import BatchNorm
+from data.mnist_data import MNISTDatasetManager
+from layers.layer import Layer
+from layers.denselayer import DenseLayer
 from layers.regularizations import Dropout
+from layers.batchnorm import BatchNorm
+import layers.losses as loss_fn
+from layers.activations import ACTIVATION_FN, Sigmoid, Tanh, SoftMax, ReLU
 
-np.random.seed(42)
+class BaseModel:
 
-class MLP:
-    """A simple implementation of a Multi-Layer Perceptron (MLP) for basic machine learning tasks."""
+    def __init__(self):
+        self.layers: list[Layer] = []
 
-    def __init__(self, input_layer: int, hidden_layer: list[int], output_layer: int):
-        """Initializes the MLP model with specified layer sizes.
+    def add(self, layer: Layer):
+        """Adds a layer to the model"""
+        self.layers.append(layer)
 
-        Args:
-            input_layer (int): Number of neurons in the input layer. Corresponds to the number of features in the input data.
-            hidden_layer (list[int]): Number of neurons in the hidden layer. The list defines the architecture of the hidden layers.
-            output_layer (int): Number of neurons in the output layer. Corresponds to the number of output classes for classification.
-        """
-        self.hidden_layer = hidden_layer
-        self.nlayers = len(hidden_layer) + 1 # hidden layers + output layer
-        
-        self.activation_fn = ACTIVATION_FN['tanh']
-
-        # Init hidden layers
-        self.weights, self.biases = [], []
-        self.batchnorm_layers: list[BatchNorm] = []
-        self.dropout_layers: list[Dropout] = []
-
-        prev_dim = input_layer
-        for dim in self.hidden_layer:
-            self.weights.append(np.random.randn(prev_dim, dim) * 0.1)
-            self.biases.append(np.zeros((1, dim)))
-            self.batchnorm_layers.append(BatchNorm(dim))
-            self.dropout_layers.append(Dropout(0.5))
-            prev_dim = dim
-
-        # Init output layer and gradients w.r.t the weights and bias
-        self.weights.append(np.random.randn(prev_dim, output_layer) * 0.1)
-        self.biases.append(np.zeros((1, output_layer)))
-        self.dW = [0] * self.nlayers
-        self.db = [0] * self.nlayers
-
+    def __str__(self):
+        self.name = f'model[{self.layers[0].shape[0]}'
+        self.name += ''.join(f'-{layer.shape[1]}' for layer in self.layers if layer.shape[0] != 0)
+        self.name += ']'
+        return self.name
+    
     def forward(self, X: np.ndarray) -> np.ndarray:
         """Performs the forward pass through the network.
 
@@ -53,61 +33,22 @@ class MLP:
         Returns:
             ndarray: Output of the network. Each row corresponds to the predicted values for each sample, and each column corresponds to a target label.
         """
-        self.logits = []
+        output = X
+        for layer in self.layers:
+            output = layer.forward(output)
+        return output
 
-        # Input layer
-        self.logits.append(X)
-
-        # Hidden Layers
-        for i in range(len(self.hidden_layer)):
-            # Linear Transform (Weighted Sum) Layer
-            Z = np.dot(self.logits[-1], self.weights[i]) + self.biases[i]
-            # BatchNorm Layer
-            Z = self.batchnorm_layers[i].forward(Z)
-            # Sigmoid Activation Layer
-            h = self.activation_fn(Z)
-            # Dropout Layer
-            h = self.dropout_layers[i].forward(h)
-            self.logits.append(h)
-
-        # Output Layer
-        Z = np.dot(self.logits[-1], self.weights[-1]) + self.biases[-1]
-        self.logits.append(Z)
-        y_hat = ACTIVATION_FN['softmax'](Z)
-        return y_hat
-
-    def backward(self, y_hat: np.ndarray, y: np.ndarray) -> None:
+    def backward(self, grad: np.ndarray) -> None:
         """Performs the backward pass through the network.
-        
+
         Computing the gradients of the loss w.r.t. the model parameters, and updates the weights and biases.
 
         Args:
             y_hat (ndarray): Predicted probabilities from the forward pass.
             y (ndarray): The true target labels for each training sample.
         """
-
-        # Gradient of the loss w.r.t. predictions
-        dloss = (y_hat  - y) / y.shape[0]
-
-        for i in reversed(range(self.nlayers)):
-            if i < len(self.hidden_layer): # Skip output layer
-                dloss = self.dropout_layers[i].backward(dloss)
-                dloss = dloss * self.activation_fn(self.logits[i+1], derivative=True)
-                dloss = self.batchnorm_layers[i].backward(dloss)
-
-            self.dW[i] = np.dot(self.logits[i].T, dloss)
-            self.db[i] = np.sum(dloss, axis=0, keepdims=False)
-
-            dloss = np.dot(dloss, self.weights[i].T)
-        
-        # Update weights and biases
-        for i in range(self.nlayers):
-            self.weights[i] -= self.learning_rate * self.dW[i]
-            self.biases[i] -= self.learning_rate * self.db[i]
-        # Update BatchNorm's learning parameters gamma and beta
-        for i, bn in enumerate(self.batchnorm_layers):
-            bn.gamma -= bn.dgamma * self.learning_rate
-            bn.beta -= bn.dbeta * self.learning_rate
+        for layer in reversed(self.layers):
+            grad = layer.backward(grad)
 
     def train(self, datamanager: MNISTDatasetManager, epochs: int, learning_rate: float) -> dict:
         """Trains the MLP on the training data.
@@ -139,15 +80,23 @@ class MLP:
 
                     # Calculate error in prediction using Cross-Entropy Loss function
                     loss = loss_fn.cross_entropy_loss(y_hat, y_batch)
-
+                    # Calculate gradient w.r.t loss
+                    grad = (y_hat  - y_batch) / y_batch.shape[0]
                     # Backpropagation Pass: Calculate Gradients, Weights & Bias
-                    self.backward(y_hat, y_batch)
+                    self.backward(grad)
+
+                    # Gradient Descent: Update Weights and Biases
+                    for layer in self.layers:
+                        if isinstance(layer, DenseLayer):
+                            layer.weights -= self.learning_rate * layer.dweights
+                            layer.bias -= self.learning_rate * layer.dbias
 
                     # Monitor batch metrics
                     predictions = np.argmax(y_hat, axis=1)
                     accuracy = np.mean(predictions == np.argmax(y_batch, axis=1))
                     batch_accuracies.append(accuracy)
                     batch_losses.append(loss)
+
                 # Monitor epoch metrics
                 epoch_loss = batch_losses[-1]
                 epoch_accuracy = batch_accuracies[-1]
@@ -173,6 +122,12 @@ class MLP:
                     vLoss = val_loss,
                     vAcc = val_accuracy*100
                 )
+                
+        self.weights, self.biases = [], []
+        for layer in self.layers:
+            if isinstance(layer, DenseLayer):
+                self.weights.append(layer.weights)
+                self.biases.append(layer.bias)
 
         return {
             'weights': self.weights,
@@ -182,7 +137,7 @@ class MLP:
             'validation_accuracies': validation_accuracies,
             'validation_losses': validation_losses
         }
-    
+
 if __name__ == "__main__":
 
     # Set file paths based on added MNIST Datasets
@@ -214,20 +169,27 @@ if __name__ == "__main__":
 
     # Architecture
     input_layer = train_data[0].shape[1]
-    hidden_layer = [64]
+    hidden_layer = [512]
     output_layer = train_data[1].shape[1]
-    # i.e "mlp_model[in-hl-hl-out]" 
-    nn_arq = f'mlp_model[{input_layer}'
-    nn_arq += ''.join(f'-{hl}' for hl in hidden_layer)
-    nn_arq += f'-{output_layer}]'
 
-    number_epochs = [20]
+    number_epochs = [10]
     learning_rate = 1e-3
 
     for epochs in number_epochs:
 
         # Setup NN
-        mlp = MLP(input_layer, hidden_layer, output_layer)
+        mlp = BaseModel()
+        
+        """ # Option 1
+        mlp.add(DenseLayer(input_layer, 64, activation='tanh'))
+        mlp.add(DenseLayer(64, output_layer, activation='softmax')) """
+
+        # Option 2
+        mlp.add(DenseLayer(input_layer, 800))
+        mlp.add(Tanh())
+        mlp.add(Dropout(0.2))
+        mlp.add(DenseLayer(800, output_layer))
+        mlp.add(SoftMax())
 
         # Train
         output = mlp.train(mnist, epochs, learning_rate)
@@ -240,7 +202,7 @@ if __name__ == "__main__":
         test_accuracy = np.mean(test_predictions == test_data[1])
 
         # Results
-        print(f"\n{nn_arq}, Epochs: {epochs}, Batch size: {batch_size}, Learning rate: {learning_rate} \
+        print(f"\n{mlp.__str__()}, Epochs: {epochs}, Batch size: {batch_size}, Learning rate: {learning_rate} \
                 \n{"─" * 15} Loss {"─" * 20} \
                 \nTraining Loss:\t{output['training_losses'][-1]:.3} \
                 \nValid Loss:\t{output['validation_losses'][-1]:.3} \
