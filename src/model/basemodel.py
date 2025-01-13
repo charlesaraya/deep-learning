@@ -1,6 +1,8 @@
 import numpy as np
 from math import ceil
 from tqdm import tqdm, trange
+import os
+import pickle
 
 from data.mnist_data import MNISTDatasetManager
 from optimizers.schedulers import Scheduler, WarmUpScheduler, StepDecayScheduler, plot_schedule
@@ -52,7 +54,7 @@ class BaseModel:
         for layer in reversed(self.layers):
             grad = layer.backward(grad)
 
-    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int) -> dict:
+    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int, checkpoint: list = None) -> dict:
         """Trains the MLP on the training data.
         
         Performs forward and backward passes at a given learning rate, and over a number of epochs.
@@ -70,6 +72,8 @@ class BaseModel:
             - 'training_losses' (list): Training loss values recorded at each epoch.
         """
         training_accuracies, training_losses, validation_accuracies, validation_losses = [], [], [], []
+        self.epochs = epochs
+        self.batch_size = datamanager.batch_size
 
         with trange(epochs) as t:
             for epoch in t:
@@ -121,6 +125,10 @@ class BaseModel:
                     val_loss = loss_fn.cross_entropy_loss(val_probabilities, datamanager.validation_data[1])
                     validation_losses.append(val_loss)
 
+                # Checkpoint
+                if checkpoint and (epoch+1) % checkpoint[1] == 0 and epoch > 0:
+                    self.save_checkpoint(checkpoint[0], epoch+1)
+
                 # Monitoring Metrics
                 t.set_postfix(
                     tLoss = epoch_loss,
@@ -144,6 +152,29 @@ class BaseModel:
             'validation_losses': validation_losses
         }
 
+    def save_checkpoint(self, directory: str, current_epoch):
+        """
+        Save serialized model of neural network.
+
+        Args:
+            directory (str): Directory name for the model checkpoint.
+        """
+        model_name = self.__str__()
+        model_details = f"{model_name}_e{current_epoch}of{self.epochs}_b{self.batch_size}_lr{self.learning_rate:.2}.pkl"
+
+        modelpath = os.path.join(directory, model_name)
+        filepath = os.path.join(modelpath, model_details)
+
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        if not os.path.exists(modelpath):
+            os.makedirs(modelpath)
+
+        with open(filepath, 'wb') as f:
+            pickle.dump(self, f)
+        f.close()
+
 if __name__ == "__main__":
 
     # Set file paths based on added MNIST Datasets
@@ -153,6 +184,8 @@ if __name__ == "__main__":
         'test_images_filepath': './data/MNIST/test-images',
         'test_labels_filepath': './data/MNIST/test-labels',
         'metrics_filepath': './plots/metrics/',
+        'checkpoint_filepath': './results/checkpoints/',
+        'checkpoint_epoch_freq': 5
     }
 
     # Load MINST dataset
@@ -204,7 +237,15 @@ if __name__ == "__main__":
     mlp.add(SoftMax())
 
     # Train
-    output = mlp.train(mnist, scheduler, epochs)
+    output = mlp.train(
+        mnist,
+        scheduler,
+        epochs,
+        checkpoint = [
+            config['checkpoint_filepath'],
+            config['checkpoint_epoch_freq']
+        ]
+    )
 
     # Inference
     test_probabilities = mlp.forward(test_data[0])
