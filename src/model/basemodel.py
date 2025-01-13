@@ -196,9 +196,9 @@ if __name__ == "__main__":
 
     # Option 2
     mlp.add(DenseLayer(input_layer, 800, weight_init='he'))
-    mlp.add(Tanh())
-    mlp.add(Dropout(0.5))
-    mlp.add(DenseLayer(800, output_layer, weight_init='he'))
+    mlp.add(ReLU())
+    mlp.add(Dropout(0.3))
+    mlp.add(DenseLayer(800, output_layer, weight_init='xavier'))
     mlp.add(SoftMax())
 
     # Train

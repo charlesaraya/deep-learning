@@ -5,7 +5,7 @@ from layers.activations import ACTIVATION_FN
 from layers.layer import Layer
 
 class DenseLayer(Layer):
-    def __init__(self, input_size: int, output_size: int, weight_init: str = Literal['random', 'he'], activation: None | str = None):
+    def __init__(self, input_size: int, output_size: int, weight_init: str = Literal['random', 'xavier', 'he'], activation: None | str = None):
         super(DenseLayer, self).__init__(input_size, output_size)
         
         # Initiliaze weights and bias
@@ -19,6 +19,10 @@ class DenseLayer(Layer):
         match weight_init:
             case 'random':
                 return np.random.randn(self.shape[0], self.shape[1]) * 0.01
+            case 'xavier':
+                upper = np.sqrt(1.0 / self.shape[0])
+                lower = -upper
+                return np.random.uniform(lower, upper, self.shape)
             case 'he':
                 return np.random.randn(self.shape[0], self.shape[1]) * np.sqrt(2 / self.shape[0])
 
