@@ -76,15 +76,23 @@ def relu_activation(Z: np.ndarray, derivative: bool = False) -> np.ndarray:
     return np.maximum(0, Z)
 
 class ReLU(Layer):
-    def __init__(self):
+    """Implements the (Leaky) ReLU activation function.
+    """
+    def __init__(self, alpha: float = 0):
+        """Initiliases ReLU layer with optional alpha to turn it into Leaky ReLU
+
+        Args:
+            alpha (float, optional): The slope of the function for negative inputs. Defaults to 0 (ReLU).
+        """
         super(ReLU, self).__init__()
+        self.alpha = alpha
 
     def forward(self, Z: np.ndarray) -> np.ndarray:
-        self.h = np.maximum(0, Z)
+        self.h = np.maximum(self.alpha * Z, Z)
         return self.h
 
     def backward(self, dloss: np.ndarray) -> np.ndarray:
-        return dloss * np.where(self.h < 0, 0, 1.)
+        return dloss * np.where(self.h < 0, self.alpha, 1.)
 
 def softmax_activation(Z: np.ndarray, derivative: bool = False) -> np.ndarray:
     """Applies Softmax activation function to the input.
