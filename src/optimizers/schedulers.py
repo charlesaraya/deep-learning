@@ -12,6 +12,10 @@ class Scheduler:
     def step(self):
         self.current_step += 1
 
+    def reset(self):
+        self.learning_rate = 0
+        self.current_step = 0
+
     @abstractmethod
     def get_lr(self):
         """Compute the learning rate for a given step."""
@@ -114,21 +118,22 @@ class CosineAnnealingScheduler(Scheduler):
         self.learning_rate = self.min_lr + 0.5 * (self.lr_start - self.min_lr) * (1 + math.cos(math.pi * self.current_step / self.total_steps))
         return self.learning_rate
 
-def plot_schedule(scheduler: Scheduler, epochs: int, steps_total: int, filepath: str = None):
+def plot_schedule(scheduler: Scheduler, epochs: int, steps_per_epoch: int, filepath: str = None):
     learning_rates = []
-    for _ in range(epochs):
-        for _ in range(steps_total):
+    for epoch in range(epochs):
+        for step in range(steps_per_epoch):
             learning_rates.append(scheduler.get_lr())
             scheduler.step()
+    scheduler.reset()
 
     # Add markers for the start of each epoch
-    epoch_starts = range(0, epochs*steps_total, steps_total)
+    epoch_starts = range(0, epochs*steps_per_epoch, steps_per_epoch)
     for start in epoch_starts:
         plt.axvline(x=start, color='red', linestyle='--', alpha=0.6, label="Epoch Start" if start == epoch_starts[0] else None)
 
     scheduler_name = type(scheduler.base_scheduler).__name__ if scheduler.base_scheduler else type(scheduler).__name__
     # Add labels and title
-    plt.plot(range(epochs * steps_total), learning_rates)
+    plt.plot(range(epochs * steps_per_epoch), learning_rates)
     plt.xlabel("Training Steps")
     plt.ylabel("Learning Rate")
     full_scheduler_name = scheduler_name + f' with {type(scheduler).__name__}' if scheduler.base_scheduler else scheduler_name
