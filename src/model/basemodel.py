@@ -1,7 +1,9 @@
 import numpy as np
+from math import ceil
 from tqdm import tqdm, trange
 
 from data.mnist_data import MNISTDatasetManager
+from optimizers.schedulers import Scheduler, WarmUpScheduler, StepDecayScheduler, plot_schedule
 from layers.layer import Layer
 from layers.denselayer import DenseLayer
 from layers.regularizations import Dropout
@@ -50,7 +52,7 @@ class BaseModel:
         for layer in reversed(self.layers):
             grad = layer.backward(grad)
 
-    def train(self, datamanager: MNISTDatasetManager, epochs: int, learning_rate: float) -> dict:
+    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int) -> dict:
         """Trains the MLP on the training data.
         
         Performs forward and backward passes at a given learning rate, and over a number of epochs.
@@ -68,13 +70,15 @@ class BaseModel:
             - 'training_losses' (list): Training loss values recorded at each epoch.
         """
         training_accuracies, training_losses, validation_accuracies, validation_losses = [], [], [], []
-        self.learning_rate = learning_rate
 
         with trange(epochs) as t:
             for epoch in t:
                 t.set_description(f"Epoch {epoch}") # Monitor epoch progress in terminal
                 batch_accuracies, batch_losses = [], []
                 for X_batch, y_batch in datamanager:
+
+                    self.learning_rate = scheduler.get_lr()
+
                     # Forward Pass
                     y_hat = self.forward(X_batch)
 
@@ -96,6 +100,8 @@ class BaseModel:
                     accuracy = np.mean(predictions == np.argmax(y_batch, axis=1))
                     batch_accuracies.append(accuracy)
                     batch_losses.append(loss)
+
+                    scheduler.step()
 
                 # Monitor epoch metrics
                 epoch_loss = batch_losses[-1]
@@ -172,41 +178,47 @@ if __name__ == "__main__":
     hidden_layer = [512]
     output_layer = train_data[1].shape[1]
 
-    number_epochs = [10]
-    learning_rate = 1e-3
+    epochs = 10
+    learning_rate = 9e-2
+    learning_rate_start = 1e-3
 
-    for epochs in number_epochs:
+    # Scheduler
+    steps_per_epoch = ceil(train_data[0].shape[0] / batch_size)
+    steps_total = steps_per_epoch * epochs
+    basemodel = StepDecayScheduler(learning_rate, step_size=ceil(steps_per_epoch*.15), decay_factor=0.90)
+    scheduler = WarmUpScheduler(basemodel, learning_rate_start, learning_rate, steps_total*0.1)
+    #plot_schedule(scheduler, epochs, steps_per_epoch) # Debug
 
-        # Setup NN
-        mlp = BaseModel()
-        
-        """ # Option 1
-        mlp.add(DenseLayer(input_layer, 64, activation='tanh'))
-        mlp.add(DenseLayer(64, output_layer, activation='softmax')) """
+    # Setup NN
+    mlp = BaseModel()
+    
+    """ # Option 1
+    mlp.add(DenseLayer(input_layer, 64, activation='tanh'))
+    mlp.add(DenseLayer(64, output_layer, activation='softmax')) """
 
-        # Option 2
-        mlp.add(DenseLayer(input_layer, 800))
-        mlp.add(Tanh())
-        mlp.add(Dropout(0.2))
-        mlp.add(DenseLayer(800, output_layer))
-        mlp.add(SoftMax())
+    # Option 2
+    mlp.add(DenseLayer(input_layer, 800, weight_init='he'))
+    mlp.add(ReLU())
+    mlp.add(Dropout(0.3))
+    mlp.add(DenseLayer(800, output_layer, weight_init='xavier'))
+    mlp.add(SoftMax())
 
-        # Train
-        output = mlp.train(mnist, epochs, learning_rate)
+    # Train
+    output = mlp.train(mnist, scheduler, epochs)
 
-        # Inference
-        test_probabilities = mlp.forward(test_data[0])
-        test_predictions = np.argmax(test_probabilities, axis=1)
+    # Inference
+    test_probabilities = mlp.forward(test_data[0])
+    test_predictions = np.argmax(test_probabilities, axis=1)
 
-        # Accuracy
-        test_accuracy = np.mean(test_predictions == test_data[1])
+    # Accuracy
+    test_accuracy = np.mean(test_predictions == test_data[1])
 
-        # Results
-        print(f"\n{mlp.__str__()}, Epochs: {epochs}, Batch size: {batch_size}, Learning rate: {learning_rate} \
-                \n{"─" * 15} Loss {"─" * 20} \
-                \nTraining Loss:\t{output['training_losses'][-1]:.3} \
-                \nValid Loss:\t{output['validation_losses'][-1]:.3} \
-                \n{"─" * 15} Accuracies {"─" * 15} \
-                \nTraining Acc.:\t{output['training_accuracies'][-1]:.3%} \
-                \nValid Acc.:\t{output['validation_accuracies'][-1]:.3%} \
-                \nTest Acc.:\t{test_accuracy:.3%}\n")
+    # Results
+    print(f"\n{mlp.__str__()}, Epochs: {epochs}, Batch size: {batch_size}, Learning rate: {learning_rate} \
+            \n{"─" * 15} Loss {"─" * 20} \
+            \nTraining Loss:\t{output['training_losses'][-1]:.3} \
+            \nValid Loss:\t{output['validation_losses'][-1]:.3} \
+            \n{"─" * 15} Accuracies {"─" * 15} \
+            \nTraining Acc.:\t{output['training_accuracies'][-1]:.3%} \
+            \nValid Acc.:\t{output['validation_accuracies'][-1]:.3%} \
+            \nTest Acc.:\t{test_accuracy:.3%}\n")
