@@ -1,17 +1,26 @@
 import numpy as np
+from typing import Literal
 
 from layers.activations import ACTIVATION_FN
 from layers.layer import Layer
 
 class DenseLayer(Layer):
-    def __init__(self, input_size: int, output_size: int, activation: None | str = None):
+    def __init__(self, input_size: int, output_size: int, weight_init: str = Literal['random', 'he'], activation: None | str = None):
         super(DenseLayer, self).__init__(input_size, output_size)
         
         # Initiliaze weights and bias
-        self.weights = np.random.randn(input_size, output_size) * 0.01
+        self.weights = self.init_weight(weight_init)
         self.bias = np.zeros((1, output_size))
         # Set activation function
         self.activation = ACTIVATION_FN[activation] if activation else None
+
+    def init_weight(self, weight_init):
+        """Initiliase Weights using a given strategy"""
+        match weight_init:
+            case 'random':
+                return np.random.randn(self.shape[0], self.shape[1]) * 0.01
+            case 'he':
+                return np.random.randn(self.shape[0], self.shape[1]) * np.sqrt(2 / self.shape[0])
 
     def forward(self, input_data: np.ndarray):
         """Forward pass"""

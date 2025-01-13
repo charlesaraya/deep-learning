@@ -195,10 +195,10 @@ if __name__ == "__main__":
     mlp.add(DenseLayer(64, output_layer, activation='softmax')) """
 
     # Option 2
-    mlp.add(DenseLayer(input_layer, 800))
+    mlp.add(DenseLayer(input_layer, 800, weight_init='he'))
     mlp.add(Tanh())
     mlp.add(Dropout(0.5))
-    mlp.add(DenseLayer(800, output_layer))
+    mlp.add(DenseLayer(800, output_layer, weight_init='he'))
     mlp.add(SoftMax())
 
     # Train
