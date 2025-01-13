@@ -124,6 +124,7 @@ def plot_schedule(scheduler: Scheduler, epochs: int, steps_per_epoch: int, filep
         for step in range(steps_per_epoch):
             learning_rates.append(scheduler.get_lr())
             scheduler.step()
+    scheduler.reset()
 
     # Add markers for the start of each epoch
     epoch_starts = range(0, epochs*steps_per_epoch, steps_per_epoch)

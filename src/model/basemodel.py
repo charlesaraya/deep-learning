@@ -187,8 +187,7 @@ if __name__ == "__main__":
     steps_total = steps_per_epoch * epochs
     basemodel = StepDecayScheduler(learning_rate, step_size=ceil(steps_per_epoch*.15), decay_factor=0.90)
     scheduler = WarmUpScheduler(basemodel, learning_rate_start, learning_rate, steps_total*0.1)
-    """ plot_schedule(scheduler, epochs, steps_per_epoch) # Debug
-    scheduler.reset() """
+    #plot_schedule(scheduler, epochs, steps_per_epoch) # Debug
 
     # Setup NN
     mlp = BaseModel()
