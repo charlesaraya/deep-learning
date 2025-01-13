@@ -101,6 +101,8 @@ class BaseModel:
                     batch_accuracies.append(accuracy)
                     batch_losses.append(loss)
 
+                    scheduler.step()
+
                 # Monitor epoch metrics
                 epoch_loss = batch_losses[-1]
                 epoch_accuracy = batch_accuracies[-1]
@@ -181,11 +183,12 @@ if __name__ == "__main__":
     learning_rate_start = 1e-3
 
     # Scheduler
-    steps_per_epoch = ceil(train_data[0].size / batch_size)
+    steps_per_epoch = ceil(train_data[0].shape[0] / batch_size)
     steps_total = steps_per_epoch * epochs
-    basemodel = StepDecayScheduler(learning_rate, step_size=steps_per_epoch*.15, decay_factor=0.95)
+    basemodel = StepDecayScheduler(learning_rate, step_size=ceil(steps_per_epoch*.15), decay_factor=0.90)
     scheduler = WarmUpScheduler(basemodel, learning_rate_start, learning_rate, steps_total*0.1)
-    #plot_schedule(scheduler, epochs, steps_per_epoch) # Debug
+    """ plot_schedule(scheduler, epochs, steps_per_epoch) # Debug
+    scheduler.reset() """
 
     # Setup NN
     mlp = BaseModel()
