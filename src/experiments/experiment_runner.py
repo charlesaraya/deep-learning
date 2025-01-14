@@ -1,34 +1,12 @@
 import numpy as np
 import json
 import os
-from math import ceil
 
 from model.basemodel import BaseModel
 from data.mnist_data import MNISTDatasetManager
 from data.encoders import OneHotEncoder, SmoothLabelEncoder
-from optimizers.schedulers import WarmUpScheduler, StepDecayScheduler, ExponentialDecayScheduler, CosineAnnealingScheduler
-
-from layers.denselayer import DenseLayer
-from layers.batchnorm import BatchNorm
-from layers.activations import Sigmoid, Tanh, ReLU, SoftMax
-from layers.regularizations import Dropout
-
-LAYERS = {
-    'dense': DenseLayer,
-    'sigmoid': Sigmoid,
-    'tanh': Tanh,
-    'relu': ReLU,
-    'softmax': SoftMax,
-    'batchnorm': BatchNorm,
-    'dropout': Dropout
-}
-
-SCHEDULERS = {
-    'warmup': WarmUpScheduler,
-    'step': StepDecayScheduler,
-    'exponential': ExponentialDecayScheduler,
-    'cosine': CosineAnnealingScheduler
-}
+from layers.layer_factory import LayerFactory
+from optimizers.scheduler_factory import SchedulerFactory
 
 ENCODERS = {
     'onehot': OneHotEncoder,
@@ -65,50 +43,17 @@ class ExperimentRunner:
             shuffle = self.config['dataset']['shuffle_test_set']
         )
         # Scheduler
-        steps_per_epoch = ceil(self.datamanager.train_data[0].shape[0] / self.datamanager.batch_size)
-        step_size = ceil(steps_per_epoch*config['scheduler']['base']['step_ratio'])
-        basemodel = SCHEDULERS[config['scheduler']['base']['name']](
-            config['scheduler']['base']['learning_rate'],
-            step_size,
-            config['scheduler']['base']['decay_factor']
+        scheduler_factory = SchedulerFactory(
+            dataset_len = self.datamanager.train_data[0].shape[0],
+            batch_size = self.datamanager.batch_size
         )
-        if config['scheduler']['main']['name'] == 'warmup':
-            steps_total = steps_per_epoch * config['epochs']
-            self.scheduler = SCHEDULERS['warmup'](
-                basemodel,
-                config['scheduler']['main']['learning_rate_start'],
-                config['scheduler']['main']['learning_rate'],
-                config['scheduler']['main']['warmup_ratio'] * steps_total
-            )
-        else:
-            self.scheduler = basemodel
+        self.scheduler = scheduler_factory.create(config['scheduler'])
 
         # Init Model
+        layer_factory = LayerFactory()
         self.model: BaseModel = model()
         for layer in self.config['layers']:
-            match layer['name']:
-                case 'dense':
-                    self.model.add(
-                        LAYERS[layer['name']](
-                            layer['input'],
-                            layer['output'],
-                            layer['weight_init']
-                        )
-                    )
-                case 'batchnorm':
-                    self.model.add(
-                        LAYERS[layer['name']](
-                            layer['dim']
-                        )
-                    )
-                case 'dropout':
-                    self.model.add(
-                        LAYERS[layer['name']](
-                            layer['rate']
-                        )
-                    )
-                case _:
-                    self.model.add(LAYERS[layer['name']]())
+            self.model.add(layer_factory.create(layer))
 
     def run(self) -> None:
         """Runs an experiment for a given configuration."""
@@ -148,7 +93,7 @@ class ExperimentRunner:
         #model_name = self._create_model_name()
         model_name = self.model.__str__()
         print(f"\n{model_name}, Epochs: {self.config['epochs']}, Batch size: {self.config['dataset']['batch_size']}, " +
-                f"Learning rate: {self.config['scheduler']['base']['learning_rate']} \
+                f"Learning rate: {self.config['scheduler']['params']['lr_max']} \
                 \n{"─" * 15} Loss {"─" * 20} \
                 \nTraining Loss:\t{train_results['training_losses'][-1]:.3} \
                 \nValid Loss:\t{train_results['validation_losses'][-1]:.3} \
@@ -164,7 +109,7 @@ class ExperimentRunner:
         if not os.path.exists(experiment_filepath):
             os.makedirs(experiment_filepath)
 
-        experiment_params = f"_e{self.config['epochs']}_b{self.config['dataset']['batch_size']}_lr{self.config['scheduler']['base']['learning_rate']:.2}"
+        experiment_params = f"_e{self.config['epochs']}_b{self.config['dataset']['batch_size']}_lr{self.config['scheduler']['params']['lr_max']:.2}"
         experiment_name = 'experiment_' + experiment_params + '.json'
         experiment_filepath = os.path.join(
             experiment_filepath,

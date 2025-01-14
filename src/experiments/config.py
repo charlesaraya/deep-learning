@@ -14,44 +14,54 @@ config = {
     'layers': [
         {
             'name': 'dense',
-            'input': 784,
-            'output': 1000,
-            'weight_init': 'he'
+            'params':{
+                'input_size': 784,
+                'output_size': 1000,
+                'weight_init': 'he'
+            }
         },
         {
             'name': 'batchnorm',
-            'dim': 1000
+            'params': {
+                'dim': 1000
+            }
         },
         {
             'name': 'relu'
         },
         {
             'name': 'dropout',
-            'rate': 0.4
+            'params': {
+                'rate': 0.4
+            }
         },
         {
             'name': 'dense',
-            'input': 1000,
-            'output': 10,
-            'weight_init': 'xavier'
+            'params': {
+                'input_size': 1000,
+                'output_size': 10,
+                'weight_init': 'xavier'
+            }
         },
         {
             'name': 'softmax'
         }
     ],
     'scheduler': {
-        'main': {
-            'name': 'warmup',
-            'learning_rate_start': 1e-3,
-            'learning_rate': 9e-2,
-            'warmup_ratio': 0.1
-        },
-        'base': {
-            'name': 'step',
-            'learning_rate': 9e-2,
-            'decay_factor': 0.9,
-            'step_ratio': 0.15
-        },
+        'name': 'warmup',
+        'params': {
+            'base_scheduler': {
+                'name': 'step',
+                'params': {
+                    'lr_start': 9e-2,
+                    'decay_factor': 0.9,
+                    'step_size': 200
+                }
+            },
+            'lr_start': 1e-3,
+            'lr_max': 9e-2,
+            'warmup_steps': 784
+        }
     },
     'log_filepath': './results/logs/'
 }
