@@ -5,6 +5,7 @@ import os
 import pickle
 
 from data.mnist_data import MNISTDatasetManager
+from data.encoders import OneHotEncoder, SmoothLabelEncoder
 from optimizers.schedulers import Scheduler, WarmUpScheduler, StepDecayScheduler, plot_schedule
 from layers.layer import Layer
 from layers.denselayer import DenseLayer
@@ -222,7 +223,7 @@ if __name__ == "__main__":
 
     # Load MINST dataset
     batch_size = 64
-    mnist = MNISTDatasetManager(batch_size)
+    mnist = MNISTDatasetManager(batch_size, SmoothLabelEncoder())
 
     mnist.load_data(
         config['train_images_filepath'],
@@ -296,11 +297,10 @@ if __name__ == "__main__":
             \nValid Acc.:\t{output['validation_accuracies'][-1]:.3%} \
             \nTest Acc.:\t{test_accuracy:.3%}\n")
 
+    # Load Checkpoint
     mlp2 = BaseModel()
     checkpoint_path = os.path.join(config['checkpoint_filepath'], config['load_checkpoint'])
     mlp2.load_checkpoint(checkpoint_path)
-
-
     output = mlp2.train(mlp2.datamanager, mlp2.scheduler, mlp2.epochs, mlp2.current_epoch)
 
     # Results after checkpoint

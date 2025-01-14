@@ -6,16 +6,19 @@ import random
 from math import ceil
 import matplotlib.pyplot as plt
 
+from data.encoders import Encoder
+
 np.random.seed(42) # For reproducibility
 
 class MNISTDatasetManager:
-    def __init__(self, batch_size: int):
+    def __init__(self, batch_size: int, encoder: Encoder):
         """MNIST Dataset Manager.
 
         Args:
             batch_size (int): Number of train samples used per batch.
         """
         self.batch_size = batch_size
+        self.encoder = encoder
         self.train_data = None
         self.test_data = None
         self.validation_data = None
@@ -113,19 +116,6 @@ class MNISTDatasetManager:
 
         return images, labels
 
-    def one_hot_encode(self, labels: np.ndarray):
-        """Encodes each target label class into its one-hot format.
-
-        Args:
-            labels (ndarray): Array of integers representing the target labels.
-        """
-        nlabels = max(labels) + 1
-        labels_encoded  = []
-        for label in labels:
-            labels_encoded.append(np.zeros(nlabels))
-            labels_encoded[-1][label] = 1
-        return np.asarray(labels_encoded)
-
     def _split_validation(self, images, labels, validation_len: int):
         val_images = images[:validation_len]
         val_labels = labels[:validation_len]
@@ -158,7 +148,7 @@ class MNISTDatasetManager:
             if self.train_data is None:
                 raise ValueError('No training data available.')
             images, labels = self.train_data
-            labels = self.one_hot_encode(labels)
+            labels = self.encoder.encode(labels)
         else:
             if self.test_data is None:
                 raise ValueError('No test data available.')
