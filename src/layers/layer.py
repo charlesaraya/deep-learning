@@ -6,7 +6,7 @@ class Layer:
         self.shape = (input_size, output_size)
 
     @abstractmethod
-    def forward(self, input: np.ndarray):
+    def forward(self, input: np.ndarray, is_training: bool = True):
         """Forward pass"""
         pass
 

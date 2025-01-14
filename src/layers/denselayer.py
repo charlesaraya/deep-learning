@@ -26,7 +26,7 @@ class DenseLayer(Layer):
             case 'he':
                 return np.random.randn(self.shape[0], self.shape[1]) * np.sqrt(2 / self.shape[0])
 
-    def forward(self, input_data: np.ndarray):
+    def forward(self, input_data: np.ndarray, is_training: bool = True):
         """Forward pass"""
         self.input = input_data
         # Linear Transform
