@@ -17,6 +17,10 @@ class BaseModel:
 
     def __init__(self):
         self.layers: list[Layer] = []
+        self.training_accuracies = []
+        self.training_losses = []
+        self.validation_accuracies = []
+        self.validation_losses = []
 
     def add(self, layer: Layer):
         """Adds a layer to the model"""
@@ -28,7 +32,7 @@ class BaseModel:
         self.name += ']'
         return self.name
     
-    def forward(self, X: np.ndarray) -> np.ndarray:
+    def forward(self, X: np.ndarray, is_training: bool = True) -> np.ndarray:
         """Performs the forward pass through the network.
 
         Args:
@@ -39,7 +43,7 @@ class BaseModel:
         """
         output = X
         for layer in self.layers:
-            output = layer.forward(output)
+            output = layer.forward(output, is_training)
         return output
 
     def backward(self, grad: np.ndarray) -> None:
@@ -54,7 +58,7 @@ class BaseModel:
         for layer in reversed(self.layers):
             grad = layer.backward(grad)
 
-    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int, checkpoint: list = None) -> dict:
+    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int, start_epoch: int = 0, checkpoint: list = None) -> dict:
         """Trains the MLP on the training data.
         
         Performs forward and backward passes at a given learning rate, and over a number of epochs.
@@ -71,14 +75,15 @@ class BaseModel:
             - 'training_accuracies' (list): Training accuracy values recorded at each epoch.
             - 'training_losses' (list): Training loss values recorded at each epoch.
         """
-        training_accuracies, training_losses, validation_accuracies, validation_losses = [], [], [], []
-        self.epochs = epochs
-        self.batch_size = datamanager.batch_size
+        self.epochs = epochs - start_epoch
+        self.datamanager = datamanager
+        self.scheduler = scheduler
 
-        with trange(epochs) as t:
+        with trange(self.epochs) as t:
             for epoch in t:
-                t.set_description(f"Epoch {epoch}") # Monitor epoch progress in terminal
+                t.set_description(f"Epoch {start_epoch + epoch+1}") # Monitor epoch progress in terminal
                 batch_accuracies, batch_losses = [], []
+                self.current_epoch = start_epoch + epoch + 1 # used to track checkpoint's epoch. Offset required to skip 0 index.
                 for X_batch, y_batch in datamanager:
 
                     self.learning_rate = scheduler.get_lr()
@@ -110,24 +115,24 @@ class BaseModel:
                 # Monitor epoch metrics
                 epoch_loss = batch_losses[-1]
                 epoch_accuracy = batch_accuracies[-1]
-                training_accuracies.append(epoch_accuracy)
-                training_losses.append(epoch_loss)
+                self.training_accuracies.append(epoch_accuracy)
+                self.training_losses.append(epoch_loss)
 
                 # Validation
                 if datamanager.validation_data:
                     # Accuracy
-                    val_probabilities = self.forward(datamanager.validation_data[0])
+                    val_probabilities = self.forward(datamanager.validation_data[0], is_training=False)
                     val_predictions = np.argmax(val_probabilities, axis=1)
                     val_labels = np.argmax(datamanager.validation_data[1], axis=1)
                     val_accuracy = np.mean(val_predictions == val_labels)
-                    validation_accuracies.append(val_accuracy)
+                    self.validation_accuracies.append(val_accuracy)
                     # Loss
                     val_loss = loss_fn.cross_entropy_loss(val_probabilities, datamanager.validation_data[1])
-                    validation_losses.append(val_loss)
+                    self.validation_losses.append(val_loss)
 
                 # Checkpoint
                 if checkpoint and (epoch+1) % checkpoint[1] == 0 and epoch > 0:
-                    self.save_checkpoint(checkpoint[0], epoch+1)
+                    self.save_checkpoint(checkpoint[0], self.current_epoch)
 
                 # Monitoring Metrics
                 t.set_postfix(
@@ -136,7 +141,7 @@ class BaseModel:
                     vLoss = val_loss,
                     vAcc = val_accuracy*100
                 )
-                
+
         self.weights, self.biases = [], []
         for layer in self.layers:
             if isinstance(layer, DenseLayer):
@@ -146,11 +151,35 @@ class BaseModel:
         return {
             'weights': self.weights,
             'bias': self.biases,
-            'training_accuracies': training_accuracies,
-            'training_losses': training_losses,
-            'validation_accuracies': validation_accuracies,
-            'validation_losses': validation_losses
+            'training_accuracies': self.training_accuracies,
+            'training_losses': self.training_losses,
+            'validation_accuracies': self.validation_accuracies,
+            'validation_losses': self.validation_losses
         }
+
+    def load_checkpoint(self, filepath: str):
+        """
+        Load serialized model with weights and biases.
+
+        Args:
+            filepath (str): Filepath to the model checkpoint.
+        """
+        with open(filepath,'rb') as f:
+            nn_model: BaseModel = pickle.load(f, encoding='bytes')
+        f.close()
+
+        np.random.set_state(nn_model.random_state)
+        self.layers = nn_model.layers
+
+        self.training_accuracies = nn_model.training_accuracies
+        self.training_losses = nn_model.training_losses
+        self.validation_accuracies = nn_model.validation_accuracies
+        self.validation_losses = nn_model.validation_losses
+
+        self.scheduler = nn_model.scheduler
+        self.datamanager = nn_model.datamanager
+        self.epochs = nn_model.epochs
+        self.current_epoch = nn_model.current_epoch
 
     def save_checkpoint(self, directory: str, current_epoch):
         """
@@ -159,8 +188,10 @@ class BaseModel:
         Args:
             directory (str): Directory name for the model checkpoint.
         """
+        self.random_state = np.random.get_state()
+
         model_name = self.__str__()
-        model_details = f"{model_name}_e{current_epoch}of{self.epochs}_b{self.batch_size}_lr{self.learning_rate:.2}.pkl"
+        model_details = f"{model_name}_e{current_epoch}of{self.epochs}_b{self.datamanager.batch_size}.pkl"
 
         modelpath = os.path.join(directory, model_name)
         filepath = os.path.join(modelpath, model_details)
@@ -185,7 +216,8 @@ if __name__ == "__main__":
         'test_labels_filepath': './data/MNIST/test-labels',
         'metrics_filepath': './plots/metrics/',
         'checkpoint_filepath': './results/checkpoints/',
-        'checkpoint_epoch_freq': 5
+        'checkpoint_epoch_freq': 2,
+        'load_checkpoint': 'model[784-800-10]/model[784-800-10]_e2of4_b64.pkl'
     }
 
     # Load MINST dataset
@@ -211,7 +243,7 @@ if __name__ == "__main__":
     hidden_layer = [512]
     output_layer = train_data[1].shape[1]
 
-    epochs = 10
+    epochs = 4
     learning_rate = 9e-2
     learning_rate_start = 1e-3
 
@@ -248,13 +280,30 @@ if __name__ == "__main__":
     )
 
     # Inference
-    test_probabilities = mlp.forward(test_data[0])
+    test_probabilities = mlp.forward(test_data[0], is_training=False)
     test_predictions = np.argmax(test_probabilities, axis=1)
 
     # Accuracy
     test_accuracy = np.mean(test_predictions == test_data[1])
 
     # Results
+    print(f"\n{mlp.__str__()}, Epochs: {epochs}, Batch size: {batch_size}, Learning rate: {learning_rate} \
+            \n{"─" * 15} Loss {"─" * 20} \
+            \nTraining Loss:\t{output['training_losses'][-1]:.3} \
+            \nValid Loss:\t{output['validation_losses'][-1]:.3} \
+            \n{"─" * 15} Accuracies {"─" * 15} \
+            \nTraining Acc.:\t{output['training_accuracies'][-1]:.3%} \
+            \nValid Acc.:\t{output['validation_accuracies'][-1]:.3%} \
+            \nTest Acc.:\t{test_accuracy:.3%}\n")
+
+    mlp2 = BaseModel()
+    checkpoint_path = os.path.join(config['checkpoint_filepath'], config['load_checkpoint'])
+    mlp2.load_checkpoint(checkpoint_path)
+
+
+    output = mlp2.train(mlp2.datamanager, mlp2.scheduler, mlp2.epochs, mlp2.current_epoch)
+
+    # Results after checkpoint
     print(f"\n{mlp.__str__()}, Epochs: {epochs}, Batch size: {batch_size}, Learning rate: {learning_rate} \
             \n{"─" * 15} Loss {"─" * 20} \
             \nTraining Loss:\t{output['training_losses'][-1]:.3} \

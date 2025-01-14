@@ -23,7 +23,7 @@ class Sigmoid(Layer):
     def __init__(self):
         super(Sigmoid, self).__init__()
 
-    def forward(self, Z: np.ndarray) -> np.ndarray:
+    def forward(self, Z: np.ndarray, is_training: bool = True) -> np.ndarray:
         self.h = 1. / (1. + np.exp(-Z))
         return self.h
 
@@ -52,7 +52,7 @@ class Tanh(Layer):
     def __init__(self):
         super(Tanh, self).__init__()
 
-    def forward(self, Z: np.ndarray) -> np.ndarray:
+    def forward(self, Z: np.ndarray, is_training: bool = True) -> np.ndarray:
         self.h = np.tanh(Z)
         return self.h
 
@@ -87,7 +87,7 @@ class ReLU(Layer):
         super(ReLU, self).__init__()
         self.alpha = alpha
 
-    def forward(self, Z: np.ndarray) -> np.ndarray:
+    def forward(self, Z: np.ndarray, is_training: bool = True) -> np.ndarray:
         self.h = np.maximum(self.alpha * Z, Z)
         return self.h
 
@@ -116,7 +116,7 @@ class SoftMax(Layer):
     def __init__(self):
         super(SoftMax, self).__init__()
 
-    def forward(self, Z: np.ndarray) -> np.ndarray:
+    def forward(self, Z: np.ndarray, is_training: bool = True) -> np.ndarray:
         exp_x = np.exp(Z - np.max(Z, axis=1, keepdims=True))
         y_hat = exp_x / np.sum(exp_x, axis=1, keepdims=True) # predicted probability for each class
         return y_hat
