@@ -80,4 +80,7 @@ def get_cfg_defaults():
     # Logging
     _C.log_filepath = "./results/logs/"
 
+    # Experiment Config directory
+    _C.config_dir = "./src/experiments/configs/"
+
     return _C.clone()

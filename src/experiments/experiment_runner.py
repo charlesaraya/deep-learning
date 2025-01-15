@@ -17,8 +17,8 @@ ENCODERS = {
 
 class ExperimentRunner:
     def __init__(self, model: BaseModel, datamanager: MNISTDatasetManager, config: dict):
-        self.config = get_cfg_defaults()
-        self.config = self.config.merge_from_other_cfg(config)
+        self.config = config
+
         # Init Data Manager
         self.datamanager: MNISTDatasetManager = datamanager(
             self.config['dataset']['batch_size'],
@@ -96,7 +96,7 @@ class ExperimentRunner:
         #model_name = self._create_model_name()
         model_name = self.model.__str__()
         print(f"\n{model_name}, Epochs: {self.config['epochs']}, Batch size: {self.config['dataset']['batch_size']}, " +
-                f"Learning rate: {self.config['scheduler']['base']['learning_rate']} \
+                f"Learning rate: {self.config['scheduler']['params']['lr_max']} \
                 \n{"─" * 15} Loss {"─" * 20} \
                 \nTraining Loss:\t{train_results['training_losses'][-1]:.3} \
                 \nValid Loss:\t{train_results['validation_losses'][-1]:.3} \
@@ -112,7 +112,7 @@ class ExperimentRunner:
         if not os.path.exists(experiment_filepath):
             os.makedirs(experiment_filepath)
 
-        experiment_params = f"_e{self.config['epochs']}_b{self.config['dataset']['batch_size']}_lr{self.config['scheduler']['base']['learning_rate']:.2}"
+        experiment_params = f"_e{self.config['epochs']}_b{self.config['dataset']['batch_size']}_lr{self.config['scheduler']['params']['lr_max']:.2}"
         experiment_name = 'experiment_' + experiment_params + '.json'
         experiment_filepath = os.path.join(
             experiment_filepath,
