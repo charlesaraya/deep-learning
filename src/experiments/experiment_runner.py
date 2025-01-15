@@ -6,15 +6,9 @@ from math import ceil
 from model.basemodel import BaseModel
 from data.mnist_data import MNISTDatasetManager
 from data.encoders import OneHotEncoder, SmoothLabelEncoder
-from optimizers.schedulers import WarmUpScheduler, StepDecayScheduler, ExponentialDecayScheduler, CosineAnnealingScheduler
+from optimizers.scheduler_factory import SchedulerFactory
 from layers.layer_factory import LayerFactory
-
-SCHEDULERS = {
-    'warmup': WarmUpScheduler,
-    'step': StepDecayScheduler,
-    'exponential': ExponentialDecayScheduler,
-    'cosine': CosineAnnealingScheduler
-}
+from experiments.config import get_cfg_defaults, load_config
 
 ENCODERS = {
     'onehot': OneHotEncoder,
@@ -23,7 +17,8 @@ ENCODERS = {
 
 class ExperimentRunner:
     def __init__(self, model: BaseModel, datamanager: MNISTDatasetManager, config: dict):
-        self.config = config
+        self.config = get_cfg_defaults()
+        self.config = self.config.merge_from_other_cfg(config)
         # Init Data Manager
         self.datamanager: MNISTDatasetManager = datamanager(
             self.config['dataset']['batch_size'],
@@ -51,23 +46,11 @@ class ExperimentRunner:
             shuffle = self.config['dataset']['shuffle_test_set']
         )
         # Scheduler
-        steps_per_epoch = ceil(self.datamanager.train_data[0].shape[0] / self.datamanager.batch_size)
-        step_size = ceil(steps_per_epoch*config['scheduler']['base']['step_ratio'])
-        basemodel = SCHEDULERS[config['scheduler']['base']['name']](
-            config['scheduler']['base']['learning_rate'],
-            step_size,
-            config['scheduler']['base']['decay_factor']
+        scheduler_factory = SchedulerFactory(
+            dataset_len = self.datamanager.train_data[0].shape[0],
+            batch_size = self.datamanager.batch_size
         )
-        if config['scheduler']['main']['name'] == 'warmup':
-            steps_total = steps_per_epoch * config['epochs']
-            self.scheduler = SCHEDULERS['warmup'](
-                basemodel,
-                config['scheduler']['main']['learning_rate_start'],
-                config['scheduler']['main']['learning_rate'],
-                config['scheduler']['main']['warmup_ratio'] * steps_total
-            )
-        else:
-            self.scheduler = basemodel
+        self.scheduler = scheduler_factory.create(self.config['scheduler'])
 
         # Init Model
         layer_factory = LayerFactory()
