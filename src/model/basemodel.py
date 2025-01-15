@@ -29,7 +29,7 @@ class BaseModel:
 
     def __str__(self):
         self.name = f'model[{self.layers[0].shape[0]}'
-        self.name += ''.join(f'-{layer.shape[1]}' for layer in self.layers if layer.shape[0] != 0)
+        self.name += ''.join(f'-{layer.shape[1]}' for layer in self.layers if isinstance(layer, DenseLayer))
         self.name += ']'
         return self.name
     
