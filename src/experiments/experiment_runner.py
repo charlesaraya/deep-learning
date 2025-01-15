@@ -7,21 +7,7 @@ from model.basemodel import BaseModel
 from data.mnist_data import MNISTDatasetManager
 from data.encoders import OneHotEncoder, SmoothLabelEncoder
 from optimizers.schedulers import WarmUpScheduler, StepDecayScheduler, ExponentialDecayScheduler, CosineAnnealingScheduler
-
-from layers.denselayer import DenseLayer
-from layers.batchnorm import BatchNorm
-from layers.activations import Sigmoid, Tanh, ReLU, SoftMax
-from layers.regularizations import Dropout
-
-LAYERS = {
-    'dense': DenseLayer,
-    'sigmoid': Sigmoid,
-    'tanh': Tanh,
-    'relu': ReLU,
-    'softmax': SoftMax,
-    'batchnorm': BatchNorm,
-    'dropout': Dropout
-}
+from layers.layer_factory import LayerFactory
 
 SCHEDULERS = {
     'warmup': WarmUpScheduler,
@@ -84,31 +70,10 @@ class ExperimentRunner:
             self.scheduler = basemodel
 
         # Init Model
+        layer_factory = LayerFactory()
         self.model: BaseModel = model()
         for layer in self.config['layers']:
-            match layer['name']:
-                case 'dense':
-                    self.model.add(
-                        LAYERS[layer['name']](
-                            layer['input'],
-                            layer['output'],
-                            layer['weight_init']
-                        )
-                    )
-                case 'batchnorm':
-                    self.model.add(
-                        LAYERS[layer['name']](
-                            layer['dim']
-                        )
-                    )
-                case 'dropout':
-                    self.model.add(
-                        LAYERS[layer['name']](
-                            layer['rate']
-                        )
-                    )
-                case _:
-                    self.model.add(LAYERS[layer['name']]())
+            self.model.add(layer_factory.create(layer))
 
     def run(self) -> None:
         """Runs an experiment for a given configuration."""
