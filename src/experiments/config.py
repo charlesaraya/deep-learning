@@ -28,6 +28,15 @@ def get_cfg_defaults():
     _C.dataset.train_labels_filepath = "./data/MNIST/train-labels"
     _C.dataset.test_images_filepath = "./data/MNIST/test-images"
     _C.dataset.test_labels_filepath = "./data/MNIST/test-labels"
+    _C.dataset.plot_filepath = './plots/data/'
+
+    _C.dataset.augmentation = CfgNode()
+    # Assign None to skip tranformation
+    _C.dataset.augmentation.rotation = [-30, 30] # range [min, max] in degrees
+    _C.dataset.augmentation.translation = [4, 4] # range [min, max] in pixels
+    _C.dataset.augmentation.scale = [0.8, 1.2] # range [min, max] as a factor. Scale down: factor < 1
+    _C.dataset.augmentation.shear = [-0.4, 0.4, 1, 0] # [min, max, hskew flag, vskew flag]
+    _C.dataset.augmentation.noise = 0.3 # noise level
 
     _C.epochs = 2
 
