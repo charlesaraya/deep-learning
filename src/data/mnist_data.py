@@ -19,14 +19,14 @@ np.random.seed(42) # For reproducibility
 MAX_PIXEL = 255
 
 class MNISTDatasetManager:
-    def __init__(self, batch_size: int, encoder: Encoder):
+    def __init__(self, batch_size: int, encoder: str):
         """MNIST Dataset Manager.
 
         Args:
             batch_size (int): Number of train samples used per batch.
         """
         self.batch_size = batch_size
-        self.encoder = encoder
+        self.encoder = ENCODERS[encoder]()
         self.train_data = None
         self.test_data = None
         self.validation_data = None
