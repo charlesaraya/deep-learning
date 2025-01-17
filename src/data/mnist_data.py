@@ -23,6 +23,8 @@ class MNISTDatasetManager:
             self,
             batch_size: int,
             encoder: str,
+            nlabels: int,
+            label_offset: int,
             transpose: bool = False
         ):
         """MNIST Dataset Manager.
@@ -30,10 +32,11 @@ class MNISTDatasetManager:
         Args:
             batch_size (int): Number of train samples used per batch.
             encoder (Encoder): Encoder class that will encode label classes.
+            nlabels: Number of class labels
             transpose: Image data requires transpose (i.e. EMNIST)
         """
         self.batch_size = batch_size
-        self.encoder: Encoder = ENCODERS[encoder]()
+        self.encoder: Encoder = ENCODERS[encoder](nlabels, label_offset)
         self.transpose = transpose
 
         self.train_data = None
@@ -388,6 +391,7 @@ if __name__ == "__main__":
     mnist = MNISTDatasetManager(
         config['batch_size'],
         config['encoder'],
+        config['nlabels'],
         transpose = config['transpose']
     )
     mnist.load_data(
@@ -420,14 +424,23 @@ if __name__ == "__main__":
     augmentations = [cfg for cfg in config['augmentation']]
     augmentations.insert(0, 'normal')
 
-    train_indexes = list(random.randint(1, mnist.train_data[0].shape[0]//len(augmentations)) for _ in range(0, NUM_IMAGES))
+    indexes = list(random.randint(1, mnist.train_data[0].shape[0]//len(augmentations)) for _ in range(0, NUM_IMAGES))
 
     for x_section, y_section, aug_name in zip(x_train_augmented, y_train_augmented, augmentations):
         images, titles = [], []
-        for i in train_indexes:
+        for i in indexes:
             images.append(x_section[i])
             titles.append(f'Training image [{i}] = {y_section[i]}')
 
         plot_path = os.path.join(config['plot_filepath'], f'{config['name']}_train_{aug_name}.png')
         plot_images(plot_path, images, titles, rows, NUM_COLS, reshape=(28,28), cmap=plt.cm.spring)
         print_images(images, titles, reshape=(28,28), whitebg=False)
+    
+    indexes = list(random.randint(1, mnist.test_data[0].shape[0]) for _ in range(0, NUM_IMAGES))
+    x_section, y_section = mnist.test_data
+    images, titles = [], []
+    for i in indexes:
+        images.append(x_section[i])
+        titles.append(f'Test image [{i}] = {y_section[i]}')
+    plot_path = os.path.join(config['plot_filepath'], f'{config['name']}_test.png')
+    plot_images(plot_path, images, titles, rows, NUM_COLS, reshape=(28,28), cmap=plt.cm.spring)
