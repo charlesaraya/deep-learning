@@ -54,7 +54,7 @@ class MNISTDatasetManager:
             batch_indices = data_indices[start_idx:end_idx]
             yield images[batch_indices], labels[batch_indices]
 
-    def load_labels(self, filepath: str):
+    def load_labels(self, filepath: str) -> np.ndarray:
         """Loads labels from the specified file path in raw binary format.
 
         Reads and parses label data from a binary file, typically used for datasets 
@@ -79,7 +79,7 @@ class MNISTDatasetManager:
             labels = np.asarray(array('B', file.read())) # next bytes represent the labels values (0 to 9)
         return labels
 
-    def load_images(self, filepath: str):
+    def load_images(self, filepath: str) -> np.ndarray:
         """Loads images from the specified file path in raw binary format.
 
         Reads and parses image data from a binary file.
@@ -141,7 +141,12 @@ class MNISTDatasetManager:
 
         return images, labels
 
-    def _split_validation(self, images: np.ndarray, labels: np.ndarray, validation_len: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def _split_validation(
+            self,
+            images: np.ndarray,
+            labels: np.ndarray,
+            validation_len: int
+        ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Splits the dataset into training and validation sets.
 
         This method separates the first `validation_len` examples from the input `images` and `labels`
@@ -170,7 +175,7 @@ class MNISTDatasetManager:
             type: str = Literal['train', 'validation', 'test'],
             shuffle: bool = False,
             transpose: bool = False
-        ):
+        ) -> tuple[np.ndarray, np.ndarray]:
         """Prepares and preprocesses the MNIST dataset for training or testing.
 
         Flattens and Normalizes image pixel values, optionally shuffles the data
@@ -221,14 +226,14 @@ class MNISTDatasetManager:
 
         return images, labels
 
-    def augment(self, config):
+    def augment(self, config) -> tuple:
         """Applies data augmentation transformations to the dataset based on the provided configuration.
 
         The `config` dictionary specifies the augmentation parameters for various transformations.
         Any key not present in the dictionary or with a value of `None` will be skipped.
 
         Args:
-            config (dict): A dictionary containing the augmentation parameters with the following keys:
+            config (dict | CfgNode): A dictionary containing the augmentation parameters with the following keys:
                 - 'rotation' (list[float, float]): Range of rotation angles in degrees (e.g., [-30, 30]).
                 - 'translation' (list[float, float]): Maximum translation offsets for x and y axes (e.g., [4, 4]).
                 - 'scale' (list[float, float]): Range for scaling factors (e.g., [0.8, 1.2]).
@@ -236,16 +241,16 @@ class MNISTDatasetManager:
                 - 'noise' (float): Standard deviation of Gaussian noise to be added to the data.
 
         Returns:
-            np.ndarray: The augmented dataset.
+            tuple (np.ndarray, ...): A tuple containing augmented data subsets. The number of elements in the tuple 
+                depends on which augmentations are applied.
 
         Notes: 
             Excessive or inappropriate augmentation can lead to unrealistic samples that confuse the model. 
             For MNIST:
-            - Rotation: ±15° to ±30°.
-            - Translation: ≤10% of the image dimensions.
-            - Scaling: 0.9x to 1.1x.
-            Affine transformation:
-                pixel(x,y) -> pixel(a x + b y + c, d x + e y + f)
+                - Rotation: ±15° to ±30°.
+                - Translation: ≤10% of the image dimensions.
+                - Scaling: 0.9x to 1.1x.
+            Affine transformation: pixel(x,y) -> pixel(a x + b y + c, d x + e y + f)
         """
         print(f"Data Augmentation Started...")
         print(f"Dataset size: {len(self.train_data[0])} samples")
@@ -253,7 +258,7 @@ class MNISTDatasetManager:
 
         self.config = config
         images, labels = self.train_data
-        num_sections = 1
+        num_sections = 1 # the non-augmented training data
         for i, cfg in enumerate(self.config):
             if self.config[cfg]:
                 augmented_images = []
