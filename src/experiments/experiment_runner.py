@@ -16,7 +16,10 @@ class ExperimentRunner:
         # Init Data Manager
         self.datamanager: MNISTDatasetManager = datamanager(
             self.config['dataset']['batch_size'],
-            self.config['dataset']['encoder']
+            self.config['dataset']['encoder'],
+            self.config['dataset']['nlabels'],
+            self.config['dataset']['label_offset'],
+            self.config['dataset']['transpose']
         )
         # Load Datasets
         self.datamanager.load_data(
@@ -74,7 +77,7 @@ class ExperimentRunner:
         """Evaluates the model on the test dataset."""
         # Inference
         test_probabilities = model.forward(test_data[0], is_training=False)
-        test_predictions = np.argmax(test_probabilities, axis=1)
+        test_predictions = np.argmax(test_probabilities, axis=1) + self.config['dataset']['label_offset']
         # Calculate Accuracy
         test_accuracy = np.mean(test_predictions == test_data[1])
         return test_accuracy
