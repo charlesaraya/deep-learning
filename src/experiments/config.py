@@ -23,7 +23,9 @@ def get_cfg_defaults():
     _C.dataset.encoder = "onehot"
     _C.dataset.shuffle_train_set = True
     _C.dataset.shuffle_test_set = True
+    _C.dataset.transpose = False
     _C.dataset.validation_set_length = 10000
+    _C.dataset.name = "MNIST"
     _C.dataset.train_images_filepath = "./data/MNIST/train-images"
     _C.dataset.train_labels_filepath = "./data/MNIST/train-labels"
     _C.dataset.test_images_filepath = "./data/MNIST/test-images"

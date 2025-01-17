@@ -19,14 +19,23 @@ np.random.seed(42) # For reproducibility
 MAX_PIXEL = 255
 
 class MNISTDatasetManager:
-    def __init__(self, batch_size: int, encoder: str):
+    def __init__(
+            self,
+            batch_size: int,
+            encoder: str,
+            transpose: bool = False
+        ):
         """MNIST Dataset Manager.
 
         Args:
             batch_size (int): Number of train samples used per batch.
+            encoder (Encoder): Encoder class that will encode label classes.
+            transpose: Image data requires transpose (i.e. EMNIST)
         """
         self.batch_size = batch_size
         self.encoder: Encoder = ENCODERS[encoder]()
+        self.transpose = transpose
+
         self.train_data = None
         self.test_data = None
         self.validation_data = None
@@ -129,6 +138,7 @@ class MNISTDatasetManager:
             validation_len (int, optional): The number of samples to allocate for a validation set.
         """
         images = self.load_images(images_filepath)
+        images = np.transpose(images, axes=(0,2,1)) if self.transpose else images
         labels = self.load_labels(labels_filepath)
         match type:
             case 'train':
@@ -173,8 +183,7 @@ class MNISTDatasetManager:
     def prepdata(
             self,
             type: str = Literal['train', 'validation', 'test'],
-            shuffle: bool = False,
-            transpose: bool = False
+            shuffle: bool = False
         ) -> tuple[np.ndarray, np.ndarray]:
         """Prepares and preprocesses the MNIST dataset for training or testing.
 
@@ -204,7 +213,6 @@ class MNISTDatasetManager:
 
         # Prep Data
         num_samples, num_rows, num_cols = images.shape
-        images = np.transpose(images, axes=(0,2,1)) if transpose else images  # Transpose (i.e. EMNIST)
         images = images.reshape(num_samples, num_rows * num_cols)   # Flatten 28x28 images into 784 units.
 
         # Normalize
@@ -280,7 +288,6 @@ class MNISTDatasetManager:
             print(f"Time Taken: {end_time - start_time:.2f} seconds")
         else:
             print(f"Data was not augmentated.")
-            return None
 
         return np.vsplit(self.train_data[0], num_sections), np.split(self.train_data[1], num_sections)
     
@@ -368,23 +375,26 @@ if __name__ == "__main__":
 
     import os
     import random
+    from yacs.config import CfgNode
     from experiments.config import get_cfg_defaults
 
     random.seed(42) # For reproducibility
 
     # Load default configuration
-    config = get_cfg_defaults()['dataset']
+    config: CfgNode = get_cfg_defaults()['dataset']
+    config.merge_from_file("./src/data/test_case.yaml")
 
     # Load MINST dataset
     mnist = MNISTDatasetManager(
         config['batch_size'],
-        config['encoder']
+        config['encoder'],
+        transpose = config['transpose']
     )
     mnist.load_data(
         config['train_images_filepath'],
         config['train_labels_filepath'],
         'train', 
-        validation_len = 10000
+        validation_len = config['validation_set_length']
     )
     mnist.load_data(
         config['test_images_filepath'],
@@ -396,9 +406,9 @@ if __name__ == "__main__":
     x_train_augmented, y_train_augmented = mnist.augment(config['augmentation'])
 
     # Data Prep
-    mnist.prepdata('train', shuffle = config['shuffle'], transpose = config['transpose'])
-    mnist.prepdata('validation', transpose = config['transpose'])
-    mnist.prepdata('test', transpose = config['transpose'])
+    mnist.prepdata('train', shuffle = config['shuffle_train_set'])
+    mnist.prepdata('validation')
+    mnist.prepdata('test')
 
     # Show some random training and test images 
     images, titles = [], []
@@ -418,6 +428,6 @@ if __name__ == "__main__":
             images.append(x_section[i])
             titles.append(f'Training image [{i}] = {y_section[i]}')
 
-        plot_path = os.path.join(config['plot_filepath'], f'MNIST_train_{aug_name}.png')
+        plot_path = os.path.join(config['plot_filepath'], f'{config['name']}_train_{aug_name}.png')
         plot_images(plot_path, images, titles, rows, NUM_COLS, reshape=(28,28), cmap=plt.cm.spring)
         print_images(images, titles, reshape=(28,28), whitebg=False)
