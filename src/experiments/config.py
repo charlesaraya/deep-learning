@@ -87,6 +87,13 @@ def get_cfg_defaults():
     _C.scheduler.params.lr_start = 1e-3
     _C.scheduler.params.lr_max = 9e-2
     _C.scheduler.params.warmup_steps = 784
+    _C.scheduler.plot_filepath = './plots/schedulers'
+
+    # Test Cases
+    _C.test = CfgNode()
+    _C.test.dataset = CfgNode()
+    _C.test.dataset.data_length =  50000
+    _C.test.dataset.num_augmentations =  1
 
     # Logging
     _C.log_filepath = "./results/logs/"

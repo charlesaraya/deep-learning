@@ -146,28 +146,32 @@ def plot_schedule(scheduler: Scheduler, epochs: int, steps_per_epoch: int, filep
     
 if __name__ == '__main__':
 
-    # Set file paths based on added MNIST Datasets
-    config = {
-        'scheduler_plot_filepath': './plots/schedulers',
-    }
-    
-    lr_start = 1e-4
-    lr_max = 5e-3
+    from yacs.config import CfgNode
+    from experiments.config import get_cfg_defaults
+    from optimizers.scheduler_factory import SchedulerFactory, SCHEDULERS
 
-    epochs = 20
-    data_length = 60000 * 6
-    batch_size = 128
-    num_batches = math.ceil(data_length / batch_size)
-    total_steps = num_batches * epochs
+    # Load default configuration
+    config: CfgNode = get_cfg_defaults()
+    config.merge_from_file("./src/optimizers/test_case.yaml")
+    test_config = config['test']
+    sch_config = config['scheduler']['params']
+    bs_config = sch_config['base_scheduler']
     
-    warmpup_ratio = 0.1
-    warmup_steps = total_steps * warmpup_ratio
+    lr_start = sch_config['lr_start']
+    lr_max = sch_config['lr_max']
 
-    base_schedulers = []
-    base_schedulers.append(StepDecayScheduler(lr_start=lr_max, step_size=300, decay_factor=0.90))
-    base_schedulers.append(ExponentialDecayScheduler(lr_start=lr_max, decay_rate=0.00025))
-    base_schedulers.append(CosineAnnealingScheduler(lr_start=lr_max, total_steps=total_steps - warmup_steps, min_lr=0.0001))
-    
-    for bs in base_schedulers:
-        scheduler = WarmUpScheduler(bs, lr_start, lr_max, warmup_steps)
-        plot_schedule(scheduler, epochs, num_batches, config['scheduler_plot_filepath'])
+    epochs = config['epochs']
+    num_augmentations = test_config['dataset']['num_augmentations']
+    total_data_length = test_config['dataset']['data_length'] * num_augmentations
+    batch_size = config['dataset']['batch_size']
+    num_batches = math.ceil(total_data_length / batch_size)
+
+    warmup_steps = sch_config['warmup_steps']
+
+    # Scheduler
+    scheduler_factory = SchedulerFactory(
+        dataset_len = total_data_length,
+        batch_size = batch_size
+    )
+    scheduler = scheduler_factory.create(config['scheduler'])
+    plot_schedule(scheduler, epochs, num_batches, config['scheduler']['plot_filepath'])
