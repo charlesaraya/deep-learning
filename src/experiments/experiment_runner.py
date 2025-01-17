@@ -28,23 +28,27 @@ class ExperimentRunner:
         self.datamanager.load_data(
             self.config['dataset']['train_images_filepath'],
             self.config['dataset']['train_labels_filepath'],
-            type = 'train'
+            type = 'train',
+            validation_len = self.config['dataset']['validation_set_length']
         )
         self.datamanager.load_data(
             self.config['dataset']['test_images_filepath'],
             self.config['dataset']['test_labels_filepath'],
             type = 'test'
         )
+        # Data Augmentation
+        self.datamanager.augment(config['dataset']['augmentation'])
+
         # Prep Data
         self.datamanager.prepdata(
             type = 'train',
-            shuffle = self.config['dataset']['shuffle_train_set'],
-            validation_len = self.config['dataset']['validation_set_length']
+            shuffle = self.config['dataset']['shuffle_train_set']
         )
         self.test_data = self.datamanager.prepdata(
             type = 'test',
             shuffle = self.config['dataset']['shuffle_test_set']
         )
+        self.datamanager.prepdata(type='validation')
         # Scheduler
         scheduler_factory = SchedulerFactory(
             dataset_len = self.datamanager.train_data[0].shape[0],
