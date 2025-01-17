@@ -5,7 +5,6 @@ from math import ceil
 
 from model.basemodel import BaseModel
 from data.mnist_data import MNISTDatasetManager
-from data.encoders import OneHotEncoder, SmoothLabelEncoder
 from optimizers.scheduler_factory import SchedulerFactory
 from layers.layer_factory import LayerFactory
 from experiments.config import get_cfg_defaults, load_config

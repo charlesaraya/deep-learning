@@ -26,7 +26,7 @@ class MNISTDatasetManager:
             batch_size (int): Number of train samples used per batch.
         """
         self.batch_size = batch_size
-        self.encoder = ENCODERS[encoder]()
+        self.encoder: Encoder = ENCODERS[encoder]()
         self.train_data = None
         self.test_data = None
         self.validation_data = None
@@ -343,7 +343,7 @@ if __name__ == "__main__":
     # Load MINST dataset
     mnist = MNISTDatasetManager(
         config['batch_size'],
-        ENCODERS[config['encoder']]()
+        config['encoder']
     )
     mnist.load_data(
         config['train_images_filepath'],
