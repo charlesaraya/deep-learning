@@ -133,8 +133,7 @@ class MNISTDatasetManager:
         match type:
             case 'train':
                 if validation_len:
-                    images, labels = self._split_validation(images, labels, validation_len)
-                self.train_data = images, labels
+                    self.validation_data, self.train_data = self._split_validation(images, labels, validation_len)
             case 'test':
                 self.test_data = images, labels
             case _:
@@ -142,14 +141,29 @@ class MNISTDatasetManager:
 
         return images, labels
 
-    def _split_validation(self, images, labels, validation_len: int):
+    def _split_validation(self, images: np.ndarray, labels: np.ndarray, validation_len: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Splits the dataset into training and validation sets.
+
+        This method separates the first `validation_len` examples from the input `images` and `labels`
+        to create a validation dataset. The remaining data is returned as the updated training set.
+
+        Args:
+            images (np.ndarray): The full dataset of input images.
+            labels (np.ndarray): The full dataset of corresponding labels.
+            validation_len (int): The number of examples to include in the validation set.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: The remaining images and labels for training.
+
+        """
+        if validation_len > abs(len(images)):
+            raise ValueError("Validation length exceeds the number of available samples.")
         val_images = images[:validation_len]
         val_labels = labels[:validation_len]
-        self.validation_data = (val_images, val_labels)
 
         images = images[validation_len:]
         labels = labels[validation_len:]
-        return images, labels
+        return (val_images, val_labels), (images, labels)
 
     def prepdata(
             self,
@@ -208,8 +222,24 @@ class MNISTDatasetManager:
         return images, labels
 
     def augment(self, config):
-        """
-        Note: Excessive or inappropriate augmentation can lead to unrealistic samples that confuse the model. 
+        """Applies data augmentation transformations to the dataset based on the provided configuration.
+
+        The `config` dictionary specifies the augmentation parameters for various transformations.
+        Any key not present in the dictionary or with a value of `None` will be skipped.
+
+        Args:
+            config (dict): A dictionary containing the augmentation parameters with the following keys:
+                - 'rotation' (list[float, float]): Range of rotation angles in degrees (e.g., [-30, 30]).
+                - 'translation' (list[float, float]): Maximum translation offsets for x and y axes (e.g., [4, 4]).
+                - 'scale' (list[float, float]): Range for scaling factors (e.g., [0.8, 1.2]).
+                - 'shear' (list[float, float, float, float]): Shearing factors as [min_x, max_x, min_y, max_y].
+                - 'noise' (float): Standard deviation of Gaussian noise to be added to the data.
+
+        Returns:
+            np.ndarray: The augmented dataset.
+
+        Notes: 
+            Excessive or inappropriate augmentation can lead to unrealistic samples that confuse the model. 
             For MNIST:
             - Rotation: ±15° to ±30°.
             - Translation: ≤10% of the image dimensions.
