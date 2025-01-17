@@ -5,15 +5,9 @@ from math import ceil
 
 from model.basemodel import BaseModel
 from data.mnist_data import MNISTDatasetManager
-from data.encoders import OneHotEncoder, SmoothLabelEncoder
 from optimizers.scheduler_factory import SchedulerFactory
 from layers.layer_factory import LayerFactory
 from experiments.config import get_cfg_defaults, load_config
-
-ENCODERS = {
-    'onehot': OneHotEncoder,
-    'smoothlabel': SmoothLabelEncoder
-}
 
 class ExperimentRunner:
     def __init__(self, model: BaseModel, datamanager: MNISTDatasetManager, config: dict):
@@ -22,7 +16,7 @@ class ExperimentRunner:
         # Init Data Manager
         self.datamanager: MNISTDatasetManager = datamanager(
             self.config['dataset']['batch_size'],
-            ENCODERS[self.config['dataset']['encoder']]()
+            self.config['dataset']['encoder']
         )
         # Load Datasets
         self.datamanager.load_data(

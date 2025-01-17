@@ -23,7 +23,9 @@ def get_cfg_defaults():
     _C.dataset.encoder = "onehot"
     _C.dataset.shuffle_train_set = True
     _C.dataset.shuffle_test_set = True
+    _C.dataset.transpose = False
     _C.dataset.validation_set_length = 10000
+    _C.dataset.name = "MNIST"
     _C.dataset.train_images_filepath = "./data/MNIST/train-images"
     _C.dataset.train_labels_filepath = "./data/MNIST/train-labels"
     _C.dataset.test_images_filepath = "./data/MNIST/test-images"
@@ -85,6 +87,13 @@ def get_cfg_defaults():
     _C.scheduler.params.lr_start = 1e-3
     _C.scheduler.params.lr_max = 9e-2
     _C.scheduler.params.warmup_steps = 784
+    _C.scheduler.plot_filepath = './plots/schedulers'
+
+    # Test Cases
+    _C.test = CfgNode()
+    _C.test.dataset = CfgNode()
+    _C.test.dataset.data_length =  50000
+    _C.test.dataset.num_augmentations =  1
 
     # Logging
     _C.log_filepath = "./results/logs/"
