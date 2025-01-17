@@ -57,6 +57,7 @@ class MNISTDatasetManager:
             raise ValueError('No training data available.')
         
         images, labels = self.train_data
+        images, labels = self._shuffle_data(images, labels)
         data_length = images.shape[0]
         self.total_batches = ceil(data_length / self.batch_size)
 
@@ -182,6 +183,15 @@ class MNISTDatasetManager:
         images = images[validation_len:]
         labels = labels[validation_len:]
         return (val_images, val_labels), (images, labels)
+    
+    def _shuffle_data(self, dataset: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        images, labels = dataset
+        num_samples = images.shape[0]
+        indices = np.arange(num_samples)
+        np.random.shuffle(indices)
+        images = images[indices]
+        labels = labels[indices]
+        return images, labels
 
     def prepdata(
             self,
@@ -222,11 +232,7 @@ class MNISTDatasetManager:
         images = np.divide(images, MAX_PIXEL)
 
         # Shuffle data
-        if shuffle:
-            indices = np.arange(num_samples)
-            np.random.shuffle(indices)
-            images = images[indices]
-            labels = labels[indices]
+        images, labels = self._shuffle_data((images, labels)) if shuffle else images, labels
 
         if type == 'train':
             self.train_data = images, labels
@@ -392,6 +398,7 @@ if __name__ == "__main__":
         config['batch_size'],
         config['encoder'],
         config['nlabels'],
+        config['label_offset'],
         transpose = config['transpose']
     )
     mnist.load_data(
