@@ -59,7 +59,7 @@ class BaseModel:
         for layer in reversed(self.layers):
             grad = layer.backward(grad)
 
-    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int, loss_fn: str = 'cross-entropy', start_epoch: int = 0, checkpoint: list = None) -> dict:
+    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int, loss_fn: str = 'cross-entropy-loss', start_epoch: int = 0, checkpoint: list = None) -> dict:
         """Trains the MLP on the training data.
         
         Performs forward and backward passes at a given learning rate, and over a number of epochs.
