@@ -65,7 +65,8 @@ class ExperimentRunner:
         results = self.model.train(
             self.datamanager,
             self.scheduler,
-            self.config['epochs']
+            self.config['epochs'],
+            self.config['loss_fn']
         )
         # Evaluate
         test_accuracy = self.evaluate(self.model, self.test_data)

@@ -16,6 +16,6 @@ def cross_entropy_loss(y_hat: np.ndarray, y: np.ndarray) -> float:
     return loss_batch
 
 LOSS_FN = {
-    'cross-entropy': cross_entropy_loss,
+    'cross-entropy-loss': cross_entropy_loss,
     None: None
 }

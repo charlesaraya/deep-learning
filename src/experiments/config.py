@@ -43,6 +43,7 @@ def get_cfg_defaults():
     _C.dataset.augmentation.noise = 0.3 # noise level
 
     _C.epochs = 2
+    _C.loss_fn = 'cross-entropy-loss'
 
     # Model and Layer Configuration
     _C.layers = []
