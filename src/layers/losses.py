@@ -10,7 +10,7 @@ def cross_entropy_loss(y_hat: np.ndarray, y: np.ndarray) -> float:
         Returns:
             float: The cross-entropy loss averaged across all samples.
     """
-    epsilon = 1e-8
-    loss = -y * np.log(y_hat + epsilon) # Add epsilon for stability
-    loss_batch = np.sum(loss) / y.shape[0]
+    epsilon = 1e-8 # Add epsilon for stability
+    loss = -np.sum(y * np.log(y_hat + epsilon), axis=1) # sample loss
+    loss_batch = np.sum(loss) / y.shape[0] # batch average loss
     return loss_batch
