@@ -55,7 +55,7 @@ class MNISTDatasetManager:
         """Generates iterable mini-batches of training data."""
         if self.train_data is None:
             raise ValueError('No training data available.')
-        
+
         images, labels = self.train_data
         images, labels = self._shuffle_data(images, labels)
         data_length = images.shape[0]
@@ -184,8 +184,7 @@ class MNISTDatasetManager:
         labels = labels[validation_len:]
         return (val_images, val_labels), (images, labels)
     
-    def _shuffle_data(self, dataset: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        images, labels = dataset
+    def _shuffle_data(self, images: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         num_samples = images.shape[0]
         indices = np.arange(num_samples)
         np.random.shuffle(indices)
@@ -232,7 +231,8 @@ class MNISTDatasetManager:
         images = np.divide(images, MAX_PIXEL)
 
         # Shuffle data
-        images, labels = self._shuffle_data((images, labels)) if shuffle else images, labels
+        if shuffle:
+            images, labels = self._shuffle_data(images, labels) 
 
         if type == 'train':
             self.train_data = images, labels
