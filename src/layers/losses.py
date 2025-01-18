@@ -14,3 +14,8 @@ def cross_entropy_loss(y_hat: np.ndarray, y: np.ndarray) -> float:
     loss = -y * np.log(y_hat + epsilon) # Add epsilon for stability
     loss_batch = np.sum(loss) / y.shape[0]
     return loss_batch
+
+LOSS_FN = {
+    'cross-entropy': cross_entropy_loss,
+    None: None
+}

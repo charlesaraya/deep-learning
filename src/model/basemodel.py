@@ -11,7 +11,7 @@ from layers.layer import Layer
 from layers.denselayer import DenseLayer
 from layers.regularizations import Dropout
 from layers.batchnorm import BatchNorm
-import layers.losses as loss_fn
+from layers.losses import LOSS_FN
 from layers.activations import ACTIVATION_FN, Sigmoid, Tanh, SoftMax, ReLU
 
 class BaseModel:
@@ -59,7 +59,7 @@ class BaseModel:
         for layer in reversed(self.layers):
             grad = layer.backward(grad)
 
-    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int, start_epoch: int = 0, checkpoint: list = None) -> dict:
+    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int, loss_fn: str = 'cross-entropy', start_epoch: int = 0, checkpoint: list = None) -> dict:
         """Trains the MLP on the training data.
         
         Performs forward and backward passes at a given learning rate, and over a number of epochs.
@@ -92,8 +92,8 @@ class BaseModel:
                     # Forward Pass
                     y_hat = self.forward(X_batch)
 
-                    # Calculate error in prediction using Cross-Entropy Loss function
-                    loss = loss_fn.cross_entropy_loss(y_hat, y_batch)
+                    # Calculate error in prediction
+                    loss = LOSS_FN[loss_fn](y_hat, y_batch)
                     # Calculate gradient w.r.t loss
                     grad = (y_hat  - y_batch) / y_batch.shape[0]
                     # Backpropagation Pass: Calculate Gradients, Weights & Bias
@@ -128,7 +128,7 @@ class BaseModel:
                     val_accuracy = np.mean(val_predictions == val_labels)
                     self.validation_accuracies.append(val_accuracy)
                     # Loss
-                    val_loss = loss_fn.cross_entropy_loss(val_probabilities, datamanager.validation_data[1])
+                    val_loss = LOSS_FN[loss_fn](val_probabilities, datamanager.validation_data[1])
                     self.validation_losses.append(val_loss)
 
                 # Checkpoint
