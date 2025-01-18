@@ -11,7 +11,7 @@ from layers.layer import Layer
 from layers.denselayer import DenseLayer
 from layers.regularizations import Dropout
 from layers.batchnorm import BatchNorm
-from layers.losses import LOSS_FN
+from layers.losses import Loss, LOSS_FN
 from layers.activations import ACTIVATION_FN, Sigmoid, Tanh, SoftMax, ReLU
 
 class BaseModel:
@@ -79,6 +79,7 @@ class BaseModel:
         self.epochs = epochs - start_epoch
         self.datamanager = datamanager
         self.scheduler = scheduler
+        self.loss_fn: Loss = LOSS_FN[loss_fn]()
 
         with trange(self.epochs) as t:
             for epoch in t:
@@ -93,9 +94,9 @@ class BaseModel:
                     y_hat = self.forward(X_batch)
 
                     # Calculate error in prediction
-                    loss = LOSS_FN[loss_fn](y_hat, y_batch)
+                    loss = self.loss_fn.forward(y_hat, y_batch)
                     # Calculate gradient w.r.t loss
-                    grad = (y_hat  - y_batch) / y_batch.shape[0]
+                    grad = self.loss_fn.backward(y_hat, y_batch)
                     # Backpropagation Pass: Calculate Gradients, Weights & Bias
                     self.backward(grad)
 
@@ -128,7 +129,7 @@ class BaseModel:
                     val_accuracy = np.mean(val_predictions == val_labels)
                     self.validation_accuracies.append(val_accuracy)
                     # Loss
-                    val_loss = LOSS_FN[loss_fn](val_probabilities, datamanager.validation_data[1])
+                    val_loss = self.loss_fn.forward(val_probabilities, datamanager.validation_data[1])
                     self.validation_losses.append(val_loss)
 
                 # Checkpoint
