@@ -15,7 +15,7 @@ __pycache__/
 *.so
 
 # YAML extensions
-*.yaml
+*.yaml*
 
 # Distribution / packaging
 .Python
