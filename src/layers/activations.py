@@ -92,7 +92,7 @@ class ReLU(Layer):
         return self.h
 
     def backward(self, dloss: np.ndarray) -> np.ndarray:
-        return dloss * np.where(self.h < 0, self.alpha, 1.)
+        return dloss * np.where(self.h <= 0, self.alpha, 1.)
 
 def softmax_activation(Z: np.ndarray, derivative: bool = False) -> np.ndarray:
     """Applies Softmax activation function to the input.
