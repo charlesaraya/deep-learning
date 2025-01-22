@@ -14,3 +14,7 @@ class Layer:
     def backward(self, output_gradient: np.ndarray):
         """Backward pass"""
         pass
+
+    def update(self, learning_rate: float):
+        """Update parameters pass"""
+        pass

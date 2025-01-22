@@ -95,3 +95,9 @@ class BatchNorm(Layer):
         dloss3 = (1.0 / batch_size) * dmu
         dloss = dloss1 + dloss2 + dloss3 # final partial derivatives, 
         return dloss
+
+    def update(self, learning_rate: float):
+        """Update parameters pass"""
+        self.gamma -= learning_rate * self.dgamma
+        self.beta -= learning_rate * self.dbeta
+        return self.gamma, self.beta

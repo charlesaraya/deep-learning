@@ -100,11 +100,9 @@ class BaseModel:
                     # Backpropagation Pass: Calculate Gradients, Weights & Bias
                     self.backward(grad)
 
-                    # Gradient Descent: Update Weights and Biases
+                    # Gradient Descent: Update Parameters Pass
                     for layer in self.layers:
-                        if isinstance(layer, DenseLayer):
-                            layer.weights -= self.learning_rate * layer.dweights
-                            layer.bias -= self.learning_rate * layer.dbias
+                        layer.update(self.learning_rate)
 
                     # Monitor batch metrics
                     predictions = np.argmax(y_hat, axis=1)
