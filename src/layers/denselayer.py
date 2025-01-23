@@ -47,3 +47,9 @@ class DenseLayer(Layer):
         dinput = np.dot(doutput, self.weights.T)
 
         return dinput
+
+    def update(self, learning_rate: float):
+        """Update parameters pass"""
+        self.weights -= learning_rate * self.dweights
+        self.bias -= learning_rate * self.dbias
+        return self.weights, self.bias

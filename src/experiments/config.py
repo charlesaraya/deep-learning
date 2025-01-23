@@ -24,6 +24,8 @@ def get_cfg_defaults():
     _C.dataset.shuffle_train_set = True
     _C.dataset.shuffle_test_set = True
     _C.dataset.transpose = False
+    _C.dataset.flatten = True
+    _C.dataset.channels = 1
     _C.dataset.validation_set_length = 10000
     _C.dataset.name = "MNIST"
     _C.dataset.nlabels = 10

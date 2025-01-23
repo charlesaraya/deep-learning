@@ -86,33 +86,44 @@ class BaseModel:
                 t.set_description(f"Epoch {start_epoch + epoch+1}") # Monitor epoch progress in terminal
                 batch_accuracies, batch_losses = [], []
                 self.current_epoch = start_epoch + epoch + 1 # used to track checkpoint's epoch. Offset required to skip 0 index.
-                for X_batch, y_batch in datamanager:
 
-                    self.learning_rate = scheduler.get_lr()
+                """ with trange(datamanager.batch_size) as b:
+                    for batch in b:
+                        b.set_description(f"Batch {batch+1}") # Monitor epoch progress in terminal """
+                i=0
+                with tqdm(total=datamanager.train_data[0].shape[0]) as b:
+                    for X_batch, y_batch in tqdm(datamanager):
+                        b.set_description(f"Batch {i+1}") # Monitor batch progress in terminal
+                        self.learning_rate = scheduler.get_lr()
 
-                    # Forward Pass
-                    y_hat = self.forward(X_batch)
+                        # Forward Pass
+                        y_hat = self.forward(X_batch)
 
-                    # Calculate error in prediction
-                    loss = self.loss_fn.forward(y_hat, y_batch)
-                    # Calculate gradient w.r.t loss
-                    grad = self.loss_fn.backward(y_hat, y_batch)
-                    # Backpropagation Pass: Calculate Gradients, Weights & Bias
-                    self.backward(grad)
+                        # Calculate error in prediction
+                        loss = self.loss_fn.forward(y_hat, y_batch)
+                        # Calculate gradient w.r.t loss
+                        grad = self.loss_fn.backward(y_hat, y_batch)
+                        # Backpropagation Pass: Calculate Gradients, Weights & Bias
+                        self.backward(grad)
 
-                    # Gradient Descent: Update Weights and Biases
-                    for layer in self.layers:
-                        if isinstance(layer, DenseLayer):
-                            layer.weights -= self.learning_rate * layer.dweights
-                            layer.bias -= self.learning_rate * layer.dbias
+                        # Gradient Descent: Update Learning Parameters
+                        for layer in self.layers:
+                            layer.update(self.learning_rate)
 
-                    # Monitor batch metrics
-                    predictions = np.argmax(y_hat, axis=1)
-                    accuracy = np.mean(predictions == np.argmax(y_batch, axis=1))
-                    batch_accuracies.append(accuracy)
-                    batch_losses.append(loss)
+                        # Monitor batch metrics
+                        predictions = np.argmax(y_hat, axis=1)
+                        accuracy = np.mean(predictions == np.argmax(y_batch, axis=1))
+                        batch_accuracies.append(accuracy)
+                        batch_losses.append(loss)
 
-                    scheduler.step()
+                        scheduler.step()
+                        # Monitoring Metrics
+                        b.set_postfix(
+                            BAcc = accuracy*100,
+                            BLoss = loss,
+                        )
+                        b.update(1)
+                        i += 1
 
                 # Monitor epoch metrics
                 epoch_loss = batch_losses[-1]

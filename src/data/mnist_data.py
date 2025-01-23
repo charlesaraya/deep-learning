@@ -25,7 +25,8 @@ class MNISTDatasetManager:
             encoder: str,
             nlabels: int,
             label_offset: int,
-            transpose: bool = False
+            transpose: bool = False,
+            channels: int = 0
         ):
         """MNIST Dataset Manager.
 
@@ -34,10 +35,12 @@ class MNISTDatasetManager:
             encoder (Encoder): Encoder class that will encode label classes.
             nlabels: Number of class labels
             transpose: Image data requires transpose (i.e. EMNIST)
+            channels (int): The number of color channels in the image data.
         """
         self.batch_size = batch_size
         self.encoder: Encoder = ENCODERS[encoder](nlabels, label_offset)
         self.transpose = transpose
+        self.channels = channels
 
         self.train_data = None
         self.test_data = None
@@ -195,7 +198,8 @@ class MNISTDatasetManager:
     def prepdata(
             self,
             type: str = Literal['train', 'validation', 'test'],
-            shuffle: bool = False
+            shuffle: bool = False,
+            flatten: bool = True
         ) -> tuple[np.ndarray, np.ndarray]:
         """Prepares and preprocesses the MNIST dataset for training or testing.
 
@@ -225,7 +229,12 @@ class MNISTDatasetManager:
 
         # Prep Data
         num_samples, num_rows, num_cols = images.shape
-        images = images.reshape(num_samples, num_rows * num_cols)   # Flatten 28x28 images into 784 units.
+
+        if flatten:
+            images = images.reshape(num_samples, num_rows * num_cols)
+
+        if self.channels > 0:
+            images = images.reshape(num_samples, self.channels, num_rows, num_cols)
 
         # Normalize
         images = np.divide(images, MAX_PIXEL)
