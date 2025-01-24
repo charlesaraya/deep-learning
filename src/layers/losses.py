@@ -16,6 +16,18 @@ class Loss:
         pass
 
 class CrossEntropyLoss(Loss):
+    """Implements the Cross-Entropy loss function.
+
+    The Cross-Entropy loss measures the difference between the predicted probability 
+    distribution and the true distribution, making it suitable for classification tasks.
+
+    This loss is commonly used with models producing probabilistic outputs, such as 
+    those with a softmax activation function in the output layer.
+
+    Note:
+        - Suitable for multi-class and binary classification problems.
+        - Requires the predicted probabilities to sum to 1 (e.g., softmax outputs).
+    """
 
     def __init__(self):
         super(CrossEntropyLoss, self).__init__()
@@ -42,7 +54,17 @@ class CrossEntropyLoss(Loss):
     
 
 class MeanSquaredError(Loss):
+    """Implements the Mean Squared Error (MSE) loss function.
 
+    The MSE loss measures the average squared difference between predicted and actual values,
+    making it suitable for regression task where the goal is to predict continuous outputs.
+
+    Note:
+        - Suitable for regression problems such as predicting prices, temperatures, or other 
+          continuous values.
+        - Not suitable for classification tasks, as it does not handle probabilistic outputs 
+          or categorical labels effectively.
+    """
     def __init__(self):
         super(MeanSquaredError, self).__init__()
 
