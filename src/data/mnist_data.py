@@ -17,6 +17,7 @@ ENCODERS = {
 np.random.seed(42) # For reproducibility
 
 MAX_PIXEL = 255
+MAX_VALIDATION_RATIO = 0.2  # 20% of the training set
 
 class MNISTDatasetManager:
     def __init__(
@@ -25,22 +26,17 @@ class MNISTDatasetManager:
             encoder: str,
             nlabels: int,
             label_offset: int,
-            transpose: bool = False,
-            channels: int = 0
         ):
         """MNIST Dataset Manager.
 
         Args:
             batch_size (int): Number of train samples used per batch.
             encoder (Encoder): Encoder class that will encode label classes.
-            nlabels: Number of class labels
-            transpose: Image data requires transpose (i.e. EMNIST)
-            channels (int): The number of color channels in the image data.
+            nlabels (int): Number of class labels.
+            label_offset (int): Offset of starting class label.
         """
         self.batch_size = batch_size
         self.encoder: Encoder = ENCODERS[encoder](nlabels, label_offset)
-        self.transpose = transpose
-        self.channels = channels
 
         self.train_data = None
         self.test_data = None
@@ -60,7 +56,7 @@ class MNISTDatasetManager:
             raise ValueError('No training data available.')
 
         images, labels = self.train_data
-        images, labels = self._shuffle_data(images, labels)
+        images, labels = self._shuffle_data(images, labels) # Shuffle before each epoch reduce bias from the order of the data and speed up convergence.
         data_length = images.shape[0]
         self.total_batches = ceil(data_length / self.batch_size)
 
@@ -95,13 +91,16 @@ class MNISTDatasetManager:
             labels = np.asarray(array('B', file.read())) # next bytes represent the labels values (0 to 9)
         return labels
 
-    def load_images(self, filepath: str) -> np.ndarray:
+    def load_images(self, filepath: str, channels: int = 0) -> np.ndarray:
         """Loads images from the specified file path in raw binary format.
 
         Reads and parses image data from a binary file.
 
         Args:
             filepath (str): Path to the file or directory containing the image raw data.
+            channels (int, optional): The number of color channels in the image data (default = 0).
+                - `1`: Grayscale images.
+                - `3`: RGB images.
 
         File Format:
             The image file format is as follows:
@@ -117,12 +116,13 @@ class MNISTDatasetManager:
                 raise ValueError(f'Magic number mismatch, expected 2051, got {magic}')
             image_data = array('B', file.read())
 
-        shape = (size, rows, cols)
+
+        shape = (size, channels, rows, cols)
         images = np.zeros(shape)
-        for i in range(size):
-            img = np.array(image_data[i * rows * cols:(i + 1) * rows * cols])
-            img = img.reshape(28, 28)
-            images[i] = img
+        for c in range(channels):
+            for i in range(size):
+                img = np.array(image_data[i * rows * cols:(i + 1) * rows * cols])
+                images[i, c] = img.reshape(rows, cols)
 
         return images
 
@@ -130,8 +130,8 @@ class MNISTDatasetManager:
             self,
             images_filepath: str,
             labels_filepath: str,
+            channels: int = 1,
             type: str = Literal['train', 'test'],
-            validation_len: int = None
         ):
         """Loads training or test datasets by combining images and labels. Additionally, 
         it splits a validation subset from the data.
@@ -139,18 +139,18 @@ class MNISTDatasetManager:
         Args:
             images_filepath (str): Path to the file containing the raw image data.
             labels_filepath (str): Path to the file containing the raw label data.
+            channels (int, optional): The number of color channels in the image data (default = 1).
+                - `1`: Grayscale images.
+                - `3`: RGB images.
             type (str): Specifies the dataset type. Must be one of:
-                - `'train'`: Loads data into `self.train_data`.
-                - `'test'`: Loads data into `self.test_data`.
-            validation_len (int, optional): The number of samples to allocate for a validation set.
+                - `train`: Loads data into `self.train_data`.
+                - `test`: Loads data into `self.test_data`.
         """
-        images = self.load_images(images_filepath)
-        images = np.transpose(images, axes=(0,2,1)) if self.transpose else images
+        images = self.load_images(images_filepath, channels)
         labels = self.load_labels(labels_filepath)
         match type:
             case 'train':
-                if validation_len:
-                    self.validation_data, self.train_data = self._split_validation(images, labels, validation_len)
+                self.train_data = images, labels
             case 'test':
                 self.test_data = images, labels
             case _:
@@ -158,35 +158,28 @@ class MNISTDatasetManager:
 
         return images, labels
 
-    def _split_validation(
-            self,
-            images: np.ndarray,
-            labels: np.ndarray,
-            validation_len: int
-        ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Splits the dataset into training and validation sets.
-
-        This method separates the first `validation_len` examples from the input `images` and `labels`
-        to create a validation dataset. The remaining data is returned as the updated training set.
+    def _split_validation(self, validation_ratio: float = 0.1) -> tuple[np.ndarray, np.ndarray]:
+        """Splits the validation set from the training set.
 
         Args:
-            images (np.ndarray): The full dataset of input images.
-            labels (np.ndarray): The full dataset of corresponding labels.
-            validation_len (int): The number of examples to include in the validation set.
+            validation_ratio (float): The ratio of samples to include form the training set into the validation set (default = 0.1).
 
         Returns:
-            tuple[np.ndarray, np.ndarray]: The remaining images and labels for training.
-
+            tuple[np.ndarray, np.ndarray]: Returns the validation set.
         """
-        if validation_len > abs(len(images)):
-            raise ValueError("Validation length exceeds the number of available samples.")
-        val_images = images[:validation_len]
-        val_labels = labels[:validation_len]
+        if self.train_data is None:
+            raise ValueError('No training data available.')
 
-        images = images[validation_len:]
-        labels = labels[validation_len:]
-        return (val_images, val_labels), (images, labels)
-    
+        if validation_ratio < 0 or validation_ratio > MAX_VALIDATION_RATIO:
+            raise ValueError(f"Invalid value {validation_ratio} for `validation_ratio`. Expected value between 0 and `0.2`")
+
+        images, labels = self.train_data
+        val_len = ceil(len(images) * validation_ratio)
+        self.validation_data = images[:val_len], labels[:val_len]
+        self.train_data = images[val_len:], labels[val_len:]
+
+        return self.validation_data
+
     def _shuffle_data(self, images: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         num_samples = images.shape[0]
         indices = np.arange(num_samples)
@@ -197,60 +190,69 @@ class MNISTDatasetManager:
 
     def prepdata(
             self,
-            type: str = Literal['train', 'validation', 'test'],
+            validation_ratio: int = 0.1,
             shuffle: bool = False,
-            flatten: bool = True
-        ) -> tuple[np.ndarray, np.ndarray]:
-        """Prepares and preprocesses the MNIST dataset for training or testing.
+            flatten: bool = True,
+            transpose: bool = False,
+            debug_ratio: float = 1,
+        ) -> None:
+        """Prepares and preprocesses the training, validation, and test datasets.
 
-        Flattens and Normalizes image pixel values, optionally shuffles the data
+        Flattens, Normalizes image pixel values, transposes the data, shuffles the data.
 
         Args:
-            type (str): Specifies the dataset type (one of 'train' or 'test')
-            shuffle (bool, optional): Shuffles the dataset.
+            validation_ratio (float, optional): The percentage of samples to include in the validation set from the training set (default = 0.1).
+                - `0`: No validation data will be created.
+            shuffle (bool, optional): Shuffles the dataset (default = False).
+            flatten (bool, optional): Flattens the dataset (default = True).
+            transpose (bool, optional): Transposes the image data (default = False).
+            debug_ratio (float, optional): Percentage of data to work with (default = 1).
+                - `1`: Use 100% of the training set, hence no debugging.
+                - `0.2`: Use 20% of the training set.
 
         Returns:
             tuple: A tuple 2D np.ndarray's (images, labels).
         """
-        if type == 'train':
-            if self.train_data is None:
-                raise ValueError('No training data available.')
-            images, labels = self.train_data
-            labels = self.encoder.encode(labels)
-        elif type == 'validation':
-            if self.validation_data is None:
-                raise ValueError('No validation data available.')
-            images, labels = self.validation_data
-            labels = self.encoder.encode(labels)
-        else:
-            if self.test_data is None:
-                raise ValueError('No test data available.')
-            images, labels = self.test_data
+        if self.train_data is None:
+            raise ValueError('No training data available.')
+
+        if self.test_data is None:
+            raise ValueError('No test data available.')
 
         # Prep Data
-        num_samples, num_rows, num_cols = images.shape
+        self.train_data = self.train_data[0], self.encoder.encode(self.train_data[1])
 
-        if flatten:
-            images = images.reshape(num_samples, num_rows * num_cols)
+        for dataset_name in ["train_data", "test_data"]:
+            # Access dataset dynamically
+            images, labels = getattr(self, dataset_name)
 
-        if self.channels > 0:
-            images = images.reshape(num_samples, self.channels, num_rows, num_cols)
+            if shuffle:
+                images, labels = self._shuffle_data(images, labels)
 
-        # Normalize
-        images = np.divide(images, MAX_PIXEL)
+            if transpose:
+                images = np.rot90(np.flip(images, axis=3), axes=(2, 3))
 
-        # Shuffle data
-        if shuffle:
-            images, labels = self._shuffle_data(images, labels) 
+            if flatten:
+                images = images.reshape(*images.shape[:-2], -1) # ensures only the last 2 dimensions are flattened
 
-        if type == 'train':
-            self.train_data = images, labels
-        elif type == 'validation':
-            self.validation_data = images, labels
-        else:
-            self.test_data = images, labels
+            if dataset_name == "train_data":
+                if debug_ratio > 0 and debug_ratio <= 1:
+                    debug_len = ceil(len(images) * debug_ratio)
+                    images = images[:debug_len]
+                    labels = labels[:debug_len]
+                else:
+                    raise ValueError(f"Invalid debug factor {debug_ratio}. Should be kept between range (0, 1].")
 
-        return images, labels
+            # Normalize
+            images = np.divide(images, MAX_PIXEL)
+
+            # Reassign dynamically back to the original dataset
+            setattr(self, dataset_name, (images, labels))
+
+        if validation_ratio:
+            self._split_validation(validation_ratio)
+
+        return None
 
     def augment(self, config) -> tuple:
         """Applies data augmentation transformations to the dataset based on the provided configuration.
@@ -383,7 +385,7 @@ def print_images(images: list[np.ndarray], title_texts: list[str], reshape: None
         image = image.reshape(reshape[0], reshape[1]) if reshape else image
         for row in image:
             for pixel in row:
-                char_index = ceil(pixel * (len(block_chars) - 1) / MAX_PIXEL)
+                char_index = ceil(pixel * (len(block_chars) - 1))
                 mapped_char = block_chars[char_index]
                 #pixel = ' ' if pixel == 0 else f'{pixel:.1f}'
                 print(mapped_char, end=' ')
@@ -396,7 +398,7 @@ if __name__ == "__main__":
     from yacs.config import CfgNode
     from experiments.config import get_cfg_defaults
 
-    random.seed(42) # For reproducibility
+    np.random.seed(42) # For reproducibility
 
     # Load default configuration
     config: CfgNode = get_cfg_defaults()['dataset']
@@ -404,31 +406,38 @@ if __name__ == "__main__":
 
     # Load MINST dataset
     mnist = MNISTDatasetManager(
-        config['batch_size'],
-        config['encoder'],
-        config['nlabels'],
-        config['label_offset'],
-        transpose = config['transpose']
+        batch_size = config['batch_size'],
+        encoder = config['encoder'],
+        nlabels = config['nlabels'],
+        label_offset = config['label_offset'],
     )
     mnist.load_data(
-        config['train_images_filepath'],
-        config['train_labels_filepath'],
-        'train', 
-        validation_len = config['validation_set_length']
+        images_filepath = config['train_images_filepath'],
+        labels_filepath = config['train_labels_filepath'],
+        channels = config['channels'],
+        type = 'train',
     )
     mnist.load_data(
-        config['test_images_filepath'],
-        config['test_labels_filepath'],
-        'test'
+        images_filepath = config['test_images_filepath'],
+        labels_filepath = config['test_labels_filepath'],
+        channels = config['channels'],
+        type = 'test',
     )
 
     # Data Augmentation
-    x_train_augmented, y_train_augmented = mnist.augment(config['augmentation'])
+    #x_train_augmented, y_train_augmented = mnist.augment(config['augmentation'])
 
     # Data Prep
-    mnist.prepdata('train', shuffle = config['shuffle_train_set'])
-    mnist.prepdata('validation')
-    mnist.prepdata('test')
+    mnist.prepdata(
+        validation_ratio = config['validation_ratio'],
+        shuffle = config['shuffle'],
+        flatten = config['flatten'],
+        transpose = config['transpose'],
+        debug_ratio = config['debug_ratio']
+    )
+    """ train_data = mnist.train_data
+    images = train_data[0]
+    print_images(train_data[0], train_data[1], reshape=(28,28), whitebg=False) """
 
     # Show some random training and test images 
     images, titles = [], []
@@ -437,21 +446,20 @@ if __name__ == "__main__":
     NUM_COLS = 5
     rows = int(NUM_IMAGES/NUM_COLS) + 1
 
-    augmentations = [cfg for cfg in config['augmentation']]
+    augmentations = [cfg for cfg in config['augmentation'] if config['augmentation'][cfg]]
     augmentations.insert(0, 'normal')
 
     indexes = list(random.randint(1, mnist.train_data[0].shape[0]//len(augmentations)) for _ in range(0, NUM_IMAGES))
 
-    for x_section, y_section, aug_name in zip(x_train_augmented, y_train_augmented, augmentations):
-        images, titles = [], []
+    for aug_name in augmentations:
         for i in indexes:
-            images.append(x_section[i])
-            titles.append(f'Training image [{i}] = {y_section[i]}')
+            images.append(mnist.train_data[0][i])
+            titles.append(f'Train img [{i}] = {np.argmax(mnist.train_data[1][i])}')
 
         plot_path = os.path.join(config['plot_filepath'], f'{config['name']}_train_{aug_name}.png')
         plot_images(plot_path, images, titles, rows, NUM_COLS, reshape=(28,28), cmap=plt.cm.spring)
         print_images(images, titles, reshape=(28,28), whitebg=False)
-    
+
     indexes = list(random.randint(1, mnist.test_data[0].shape[0]) for _ in range(0, NUM_IMAGES))
     x_section, y_section = mnist.test_data
     images, titles = [], []
