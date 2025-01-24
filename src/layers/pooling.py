@@ -38,11 +38,11 @@ class Pooling(Layer):
         self.padding = padding
 
         # Extract indexes
-        self.batch_size, self.kernel_num, input_height, input_width = input_shape
+        batch_size, self.kernel_num, input_height, input_width = input_shape
         self.poolmap_size = (input_height + 2*self.padding - self.pool_size) // self.stride + 1
 
-        input_size = self.batch_size * self.kernel_num * input_height * input_width
-        output_size = self.batch_size * self.kernel_num * self.poolmap_size**2
+        input_size = batch_size * self.kernel_num * input_height * input_width
+        output_size = batch_size * self.kernel_num * self.poolmap_size**2
         super(Pooling, self).__init__(input_size, output_size)
 
         POOLING_FN = {
@@ -75,10 +75,11 @@ class Pooling(Layer):
         self.input_data = np.pad(input_data, pad_width, mode ="constant") if self.padding > 0 else input_data
 
         # Init pool map
-        self.poolmap = np.zeros((self.batch_size, self.kernel_num, self.poolmap_size, self.poolmap_size))
+        batch_size = input_data.shape[0]
+        self.poolmap = np.zeros((batch_size, self.kernel_num, self.poolmap_size, self.poolmap_size))
 
         # Perform pooling across the batch
-        for n in range(self.batch_size):
+        for n in range(batch_size):
             # across each kernel
             for k in range(self.kernel_num):
                 # slide pool window across the feature map: left-right & top-down
@@ -96,9 +97,12 @@ class Pooling(Layer):
 
     def backward(self, output_gradient: np.ndarray):
         """Computes the gradient of the loss with respect to the input."""
-        doutput = np.zeros(self.input_data.shape)
+        # Init gradients
+        doutput = np.zeros_like(self.input_data)
+
+        batch_size = self.input_data.shape[0]
         # Perform pooling across the batch
-        for n in range(self.batch_size):
+        for n in range(batch_size):
             # across each kernel
             for k in range(self.kernel_num):
                 # slide pool window across the feature map: left-right & top-down
@@ -189,4 +193,3 @@ if __name__ == "__main__":
         doutput = pool.backward(grad)
     end_time = time.time()
     print(f"Forward pass completed.")
-

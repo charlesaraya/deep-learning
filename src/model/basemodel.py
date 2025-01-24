@@ -91,7 +91,8 @@ class BaseModel:
                     for batch in b:
                         b.set_description(f"Batch {batch+1}") # Monitor epoch progress in terminal """
                 i=0
-                with tqdm(total=datamanager.train_data[0].shape[0]) as b:
+                total_batches = ceil(datamanager.train_data[0].shape[0] / datamanager.batch_size)
+                with tqdm(total=total_batches) as b:
                     for X_batch, y_batch in tqdm(datamanager):
                         b.set_description(f"Batch {i+1}") # Monitor batch progress in terminal
                         self.learning_rate = scheduler.get_lr()
