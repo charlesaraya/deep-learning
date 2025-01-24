@@ -32,16 +32,16 @@ class ConvLayer(Layer):
         self.padding = padding
 
         # Extract indexes
-        self.batch_size, self.input_channels, input_height, input_width = input_shape
+        batch_size, input_channels, input_height, input_width = input_shape
         self.featmap_size = (input_height + 2*self.padding - self.kernel_size) // self.stride + 1
 
-        input_size = self.batch_size * self.input_channels * input_height * input_width
+        input_size = batch_size * input_channels * input_height * input_width
         output_size = self.kernel_num * self.featmap_size**2
         super(ConvLayer, self).__init__(input_size, output_size)
 
         # Initiliaze kernel weights
         self.kernels = self.init_kernels(
-            self.input_channels,
+            input_channels,
             self.kernel_num,
             self.kernel_size,
             weight_init
@@ -74,10 +74,11 @@ class ConvLayer(Layer):
         self.input_data = self._pad_data(input_data, self.padding)
 
         # Init feature map
-        self.featmap = np.zeros((self.batch_size, self.kernel_num, self.featmap_size, self.featmap_size))
+        batch_size = self.input_data.shape[0]
+        self.featmap = np.zeros((batch_size, self.kernel_num, self.featmap_size, self.featmap_size))
 
         # Perform convolution
-        for n in range(self.batch_size):
+        for n in range(batch_size):
             for k, kernel in enumerate(self.kernels):
                 # Slide kernel filter across the image (left-right & top-down)
                 for i in range(self.featmap_size):
@@ -100,8 +101,9 @@ class ConvLayer(Layer):
         dinput = np.zeros_like(self.input_data)
         self.dkernels = np.zeros_like(self.kernels)
 
+        batch_size = self.input_data.shape[0]
         # Gradient w.r.t. kernel weights and input
-        for n in range(self.batch_size):
+        for n in range(batch_size):
             for k, kernel in enumerate(self.kernels):
                 for i in range(self.featmap_size):
                     # Set kernel window row indeces
