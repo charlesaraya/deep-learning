@@ -19,19 +19,18 @@ class ExperimentRunner:
             self.config['dataset']['encoder'],
             self.config['dataset']['nlabels'],
             self.config['dataset']['label_offset'],
-            self.config['dataset']['transpose'],
-            self.config['dataset']['channels']
         )
         # Load Datasets
         self.datamanager.load_data(
             self.config['dataset']['train_images_filepath'],
             self.config['dataset']['train_labels_filepath'],
+            channels = self.config['dataset']['channels'],
             type = 'train',
-            validation_len = self.config['dataset']['validation_set_length']
         )
         self.datamanager.load_data(
             self.config['dataset']['test_images_filepath'],
             self.config['dataset']['test_labels_filepath'],
+            channels = self.config['dataset']['channels'],
             type = 'test'
         )
         # Data Augmentation
@@ -39,18 +38,11 @@ class ExperimentRunner:
 
         # Prep Data
         self.datamanager.prepdata(
-            type = 'train',
-            shuffle = self.config['dataset']['shuffle_train_set'],
-            flatten = self.config['dataset']['flatten']
-        )
-        self.test_data = self.datamanager.prepdata(
-            type = 'test',
-            shuffle = self.config['dataset']['shuffle_test_set'],
-            flatten = self.config['dataset']['flatten']
-        )
-        self.datamanager.prepdata(
-            type='validation',
-            flatten = self.config['dataset']['flatten']
+            validation_ratio = self.config['dataset']['validation_ratio'],
+            shuffle = self.config['dataset']['shuffle'],
+            flatten = self.config['dataset']['flatten'],
+            transpose = self.config['dataset']['transpose'],
+            debug_ratio = self.config['dataset']['debug_ratio'],
         )
         # Scheduler
         scheduler_factory = SchedulerFactory(

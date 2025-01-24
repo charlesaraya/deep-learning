@@ -21,12 +21,11 @@ def get_cfg_defaults():
     _C.dataset = CfgNode()
     _C.dataset.batch_size = 64
     _C.dataset.encoder = "onehot"
-    _C.dataset.shuffle_train_set = True
-    _C.dataset.shuffle_test_set = True
+    _C.dataset.shuffle = True
     _C.dataset.transpose = False
     _C.dataset.flatten = True
     _C.dataset.channels = 1
-    _C.dataset.validation_set_length = 10000
+    _C.dataset.validation_ratio = 0.1
     _C.dataset.name = "MNIST"
     _C.dataset.nlabels = 10
     _C.dataset.label_offset = 0
@@ -35,6 +34,7 @@ def get_cfg_defaults():
     _C.dataset.test_images_filepath = "./data/MNIST/test-images"
     _C.dataset.test_labels_filepath = "./data/MNIST/test-labels"
     _C.dataset.plot_filepath = './plots/data/'
+    _C.dataset.debug_ratio = 1.0
 
     _C.dataset.augmentation = CfgNode()
     # Assign None to skip tranformation
@@ -60,6 +60,7 @@ def get_cfg_defaults():
     _C.layers[-1].name = "batchnorm"
     _C.layers[-1].params = CfgNode()
     _C.layers[-1].params.dim = 1000
+    _C.layers[-1].params.mode = "dense"
 
     _C.layers.append(CfgNode())
     _C.layers[-1].name = "relu"
