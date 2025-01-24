@@ -11,7 +11,7 @@ def main():
 
     for file_name in os.listdir(config.config_dir):
         if not file_name.endswith(('.yaml')):
-            raise Exception(f"File with wrong extension: {file_name}. Only yaml files are accepted.")
+            continue
 
         # Merge default config with experiment config
         file_path = os.path.join(config.config_dir, file_name)
