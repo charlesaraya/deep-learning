@@ -30,6 +30,6 @@ class LayerFactory:
         if layer_type not in self.layer_map:
             raise ValueError(f'Unknown layer type: {layer_type}')
         # YACS loads yaml tuples as strings
-        if 'params' in layer_config and 'input_shape' in layer_config['params']:
-            layer_config['params']['input_shape'] = ast.literal_eval(layer_config['params']['input_shape'])
+        if 'params' in layer_config and 'shape' in layer_config['params']:
+            layer_config['params']['shape'] = ast.literal_eval(layer_config['params']['shape'])
         return self.layer_map[layer_type](**layer_config.get('params', {}))

@@ -9,7 +9,7 @@ class ConvLayer(Layer):
     """
     def __init__(
             self,
-            input_shape: tuple,
+            shape: tuple,
             kernel_num: int,
             kernel_size: int = 3,
             weight_init: str = Literal['random', 'xavier', 'he'],
@@ -19,7 +19,7 @@ class ConvLayer(Layer):
         """Initialize Convolution Layer.
 
         Args:
-            input_shape (shape): The shape of the input data, specified as (batch_size, channels, input height, input width)).
+            shape (shape): The shape of the input data, specified as (batch_size, channels, input height, input width)).
             kernel_num (int): The number of filters (kernels) used.
             kernel_size (int): The size of the filter kernel.
             weight_init (str): The weight initilization mode.
@@ -32,7 +32,7 @@ class ConvLayer(Layer):
         self.padding = padding
 
         # Extract indexes
-        batch_size, input_channels, input_height, input_width = input_shape
+        batch_size, input_channels, input_height, input_width = shape
         self.featmap_size = (input_height + 2*self.padding - self.kernel_size) // self.stride + 1
 
         input_size = batch_size * input_channels * input_height * input_width

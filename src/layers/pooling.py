@@ -11,7 +11,7 @@ class Pooling(Layer):
     """
     def __init__(
             self,
-            input_shape: tuple,
+            shape: tuple,
             window_size: int,
             stride: int,
             padding: int,
@@ -38,7 +38,7 @@ class Pooling(Layer):
         self.padding = padding
 
         # Extract indexes
-        batch_size, self.kernel_num, input_height, input_width = input_shape
+        batch_size, self.kernel_num, input_height, input_width = shape
         self.poolmap_size = (input_height + 2*self.padding - self.pool_size) // self.stride + 1
 
         input_size = batch_size * self.kernel_num * input_height * input_width
@@ -150,7 +150,7 @@ if __name__ == "__main__":
     poolmap_size = (featmap_size + 2*padding - pool_size) // stride + 1
 
     pool = Pooling(
-        input_shape = (batch_size, kernel_num, featmap_size, featmap_size),
+        shape = (batch_size, kernel_num, featmap_size, featmap_size),
         window_size = pool_size,
         stride = stride,
         padding = padding,

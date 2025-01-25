@@ -52,15 +52,13 @@ def get_cfg_defaults():
     _C.layers.append(CfgNode())
     _C.layers[-1].name = "dense"
     _C.layers[-1].params = CfgNode()
-    _C.layers[-1].params.input_size = 784
-    _C.layers[-1].params.output_size = 1000
+    _C.layers[-1].params.shape = (784, 1000)
     _C.layers[-1].params.weight_init = "he"
 
     _C.layers.append(CfgNode())
     _C.layers[-1].name = "batchnorm"
     _C.layers[-1].params = CfgNode()
-    _C.layers[-1].params.dim = 1000
-    _C.layers[-1].params.mode = "dense"
+    _C.layers[-1].params.momentum = 0.95
 
     _C.layers.append(CfgNode())
     _C.layers[-1].name = "relu"
@@ -73,8 +71,7 @@ def get_cfg_defaults():
     _C.layers.append(CfgNode())
     _C.layers[-1].name = "dense"
     _C.layers[-1].params = CfgNode()
-    _C.layers[-1].params.input_size = 1000
-    _C.layers[-1].params.output_size = 10
+    _C.layers[-1].params.shape = (1000, 10)
     _C.layers[-1].params.weight_init = "xavier"
 
     _C.layers.append(CfgNode())

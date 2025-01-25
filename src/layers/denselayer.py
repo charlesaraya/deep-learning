@@ -5,12 +5,17 @@ from layers.activations import ACTIVATION_FN
 from layers.layer import Layer
 
 class DenseLayer(Layer):
-    def __init__(self, input_size: int, output_size: int, weight_init: str = Literal['random', 'xavier', 'he'], activation: None | str = None):
-        super(DenseLayer, self).__init__(input_size, output_size)
-        
+    def __init__(self, shape: tuple, weight_init: str = Literal['random', 'xavier', 'he'], activation: None | str = None):
+        """Initializes the Dense layer.
+
+        Args:
+            shape (tuple): Structure (input_size, output_size).
+            momentum (float, optional): Determines how much the current mini-batch contributes to the running averages.
+        """
+        super(DenseLayer, self).__init__(*shape)
         # Initiliaze weights and bias
         self.weights = self.init_weight(weight_init)
-        self.bias = np.zeros((1, output_size))
+        self.bias = np.zeros((1, self.shape[1]))
         # Set activation function
         self.activation = ACTIVATION_FN[activation] if activation else None
 
@@ -18,13 +23,13 @@ class DenseLayer(Layer):
         """Initiliase Weights using a given strategy"""
         match weight_init:
             case 'random':
-                return np.random.randn(self.shape[0], self.shape[1]) * 0.01
+                return np.random.randn(*self.shape) * 0.01
             case 'xavier':
                 upper = np.sqrt(1.0 / self.shape[0])
                 lower = -upper
                 return np.random.uniform(lower, upper, self.shape)
             case 'he':
-                return np.random.randn(self.shape[0], self.shape[1]) * np.sqrt(2 / self.shape[0])
+                return np.random.randn(*self.shape) * np.sqrt(2 / self.shape[0])
 
     def forward(self, input_data: np.ndarray, is_training: bool = True):
         """Forward pass"""
