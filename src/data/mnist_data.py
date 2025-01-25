@@ -235,10 +235,12 @@ class MNISTDatasetManager:
                 images = images.reshape(images.shape[0], -1)
 
             if dataset_name == "train_data":
-                if debug_ratio > 0 and debug_ratio <= 1:
+                if debug_ratio > 0 and debug_ratio < 1:
                     debug_len = ceil(len(images) * debug_ratio)
                     images = images[:debug_len]
                     labels = labels[:debug_len]
+                elif debug_ratio == 1:
+                    pass
                 else:
                     raise ValueError(f"Invalid debug factor {debug_ratio}. Should be kept between range (0, 1].")
 
