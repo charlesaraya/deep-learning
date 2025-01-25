@@ -91,7 +91,7 @@ class MNISTDatasetManager:
             labels = np.asarray(array('B', file.read())) # next bytes represent the labels values (0 to 9)
         return labels
 
-    def load_images(self, filepath: str, channels: int = 0) -> np.ndarray:
+    def load_images(self, filepath: str, channels: int = 1) -> np.ndarray:
         """Loads images from the specified file path in raw binary format.
 
         Reads and parses image data from a binary file.
@@ -115,7 +115,6 @@ class MNISTDatasetManager:
             if magic != 2051:
                 raise ValueError(f'Magic number mismatch, expected 2051, got {magic}')
             image_data = array('B', file.read())
-
 
         shape = (size, channels, rows, cols)
         images = np.zeros(shape)
@@ -233,7 +232,7 @@ class MNISTDatasetManager:
                 images = np.rot90(np.flip(images, axis=3), axes=(2, 3))
 
             if flatten:
-                images = images.reshape(*images.shape[:-2], -1) # ensures only the last 2 dimensions are flattened
+                images = images.reshape(images.shape[0], -1)
 
             if dataset_name == "train_data":
                 if debug_ratio > 0 and debug_ratio <= 1:
