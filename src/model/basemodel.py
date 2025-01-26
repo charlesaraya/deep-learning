@@ -163,15 +163,7 @@ class BaseModel:
                     vAcc = val_accuracy*100
                 )
 
-        self.weights, self.biases = [], []
-        for layer in self.layers:
-            if isinstance(layer, DenseLayer):
-                self.weights.append(layer.weights)
-                self.biases.append(layer.bias)
-
         return {
-            'weights': self.weights,
-            'bias': self.biases,
             'training_accuracies': self.training_accuracies,
             'training_losses': self.training_losses,
             'validation_accuracies': self.validation_accuracies,
