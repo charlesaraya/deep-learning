@@ -63,7 +63,11 @@ class ExperimentRunner:
             self.datamanager,
             self.scheduler,
             self.config['epochs'],
-            self.config['loss_fn']
+            self.config['loss_fn'],
+            checkpoint = [
+                self.config['checkpoint']['filepath'],
+                self.config['checkpoint']['epoch_freq']
+            ]
         )
         # Evaluate
         test_accuracy = self.evaluate(self.model, self.datamanager.test_data)
