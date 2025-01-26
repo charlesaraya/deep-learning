@@ -7,14 +7,14 @@ class Layer:
 
     @abstractmethod
     def forward(self, input: np.ndarray, is_training: bool = True):
-        """Forward pass"""
+        """Performs a forward pass through the layer."""
         pass
 
     @abstractmethod
     def backward(self, output_gradient: np.ndarray):
-        """Backward pass"""
+        """Performs a backward pass through the layer."""
         pass
 
     def update(self, learning_rate: float):
-        """Update parameters pass"""
+        """Performs an update pass tghrough the layer."""
         pass

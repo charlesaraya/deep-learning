@@ -5,48 +5,82 @@ from layers.layer import Layer
 EPSILON = 1e-8
 
 class BatchNorm(Layer):
-    """Batch Normalization (BatchNorm) for deep learning models.
-    
-    BatchNorm normalizes the input data within each mini-batch during training and adjusts the distribution of activations.
+    """Implements batch normalization for deep learning models.
+
+    Batch normalization normalizes the input of each mini-batch to have a mean of 0 and a variance of 1, 
+    improving training stability and accelerating convergence. 
+
+    It also introduces learnable parameters for scaling (gamma) and shifting (beta) the normalized output.
     """
-    def __init__(self, dim: int, momentum: float = 0.95):
+    def __init__(self, momentum: float = 0.95):
         """Initializes the BatchNorm layer.
 
-        Args:
-            dim (int): Dimension of the layer.
-            momentum (float, optional): Determines how much the current mini-batch contributes to the running averages.
+        #### Args
+            - `momentum` (`float`, optional): Momentum for the running mean and variance updates (default is 0.95). 
+            Larger values make the running statistics adapt more slowly to new data, while smaller values allow faster adaptation.
         """
-        super(BatchNorm, self).__init__(dim)
         self.momentum = momentum
+        super(BatchNorm, self).__init__()
 
-        self.gamma = np.ones((1, dim))
-        self.beta = np.zeros((1, dim))
+        self.axis_op = None
+        self.is_initiliazed = False
 
-        self.running_mean = np.zeros((1, dim))
-        self.running_var = np.ones((1, dim))
+    def init_layer(self, input_data: np.ndarray) -> None:
+        self.batch_size = input_data.shape[0] 
+        nchannels = input_data.shape[1]
+
+        # Calculate the number of dimensions to expand (first 2 are fixed)
+        ndim = input_data.ndim
+        expand_dims = ndim - 2
+
+        # Dynamically expand dimensions
+        self.shape = (1, nchannels) + (1,) * expand_dims
+
+        # Init parameters
+        self.gamma = np.ones(self.shape)
+        self.beta = np.zeros(self.shape)
+
+        self.running_mean = np.zeros(self.shape)
+        self.running_var = np.ones(self.shape)
+
+        # Extract axes to which calculate mean and var
+        if expand_dims > 0:
+            axes = [i for i in range(ndim)]
+            data_ndim = ndim // 2
+            self.axis_op = (0, *axes[-data_ndim:])
+        # special case: input_data with shape (batch size, input_size) hence compute ops only along axis 0
+        elif expand_dims == 0:
+            self.axis_op = 0
+
+        self.is_initiliazed = True
+        return None
 
     def __repr__(self):
-        return f"BatchNorm(gamma={self.gamma.shape}, beta={self.beta.shape}, momentum={self.momentum})"
+        return f"BatchNorm({self.shape}, gamma={self.gamma.shape}, beta={self.beta.shape}, momentum={self.momentum})"
 
-    def forward(self, X: np.ndarray, is_training: bool = True) -> np.ndarray:
-        """Forward pass: normalizes the logits and applies scaling and shifting.
+    def forward(self, input_data: np.ndarray, is_training: bool = True) -> np.ndarray:
+        """Performs a forward pass through the layer.
 
+        Normalizes the logits and applies scaling and shifting. 
         During training, it computes the batch statistics and updates running statistics.
-        During inference, it uses pre-computed running statistics.
+        During inference, it uses the pre-computed running statistics.
 
-        Args:
-            Z (ndarray): Input logits to be batch-normalized.
-            is_training (bool, optional): Indicates when the model is training.
+        #### Args
+            - `Z` (`np.ndarray`): Input logits to be batch-normalized.
+            - `is_training` (`bool`, optional): Indicates when the model is training.
 
-        Returns:
-            ndarray: The normalized and scaled output.
+        #### Returns
+            - `np.ndarray`: The normalized and scaled output.
         """
-        self.X = X
+        self.X = input_data
+        # lazily initiliaze the layer (feat: makes it agnostic to X shape)
+        if not self.is_initiliazed:
+            self.init_layer(self.X)
 
         if is_training:
             # Calculate batch logits' mean and variance
-            self.mean = np.mean(self.X, axis=0)
-            self.var = np.var(self.X, axis=0)
+            self.mean = np.mean(self.X, axis=self.axis_op, keepdims=True)
+            self.var = np.var(self.X, axis=self.axis_op, keepdims=True)
             # Normalize logits
             self.Z = (self.X - self.mean) / np.sqrt(self.var + EPSILON)
             # Scale and shift
@@ -61,22 +95,23 @@ class BatchNorm(Layer):
         return self.out
 
     def backward(self, dloss: np.ndarray) -> np.ndarray:
-        """Backward pass: computes the gradients with respect to the inputs, gamma, and beta.
+        """Performs the backward pass through the layer.
 
-        Args:
-            dloss (ndarray): The gradient of the loss with respect to the activations.
+        This method computes the gradients w.r.t. thelayer's learning parameters, gamma, and beta, and w.r.t. the inputs.
+        It propagates the gradient to the previous layer in the network.
 
-        Returns:
-            ndarray: The gradient of the loss with respect to the input logits.
+        #### Args
+            - `dloss` (`np.ndarray`): The gradient of the loss w.r.t. the  next layer's output, typically the activation layer.
+
+        #### Returns
+            - `np.ndarray`: The gradient of the loss w.r.t. the layer's input.
         """
         # Input: dloss (gradient of loss w.r.t. BN output)
-        batch_size = dloss.shape[0]
-
-        dout = batch_size * dloss
+        dout = self.batch_size * dloss
 
         # Gradients w.r.t. gamma and beta
-        self.dgamma = np.sum(self.Z * dout, axis=0)
-        self.dbeta = np.sum(dout, axis=0)
+        self.dgamma = np.sum(self.Z * dout, axis=self.axis_op, keepdims=True)
+        self.dbeta = np.sum(dout, axis=self.axis_op, keepdims=True)
 
         # break normalization formula into intermediate vars
         z_mu = self.X - self.mean
@@ -87,17 +122,27 @@ class BatchNorm(Layer):
         # Gradients w.r.t. variance
         dvar = np.sum((dz_hat * z_mu * (-0.5) * (inv_sd) ** 3), axis=0)
         # Gradients w.r.t. mean
-        dmu = (np.sum((dz_hat * -inv_sd), axis=0)) + (dvar * (-2.0 / batch_size) * np.sum(z_mu, axis=0))
+        dmu = (np.sum((dz_hat * -inv_sd), axis=0)) + (dvar * (-2.0 / self.batch_size) * np.sum(z_mu, axis=0))
 
         # Gradients w.r.t. Z
         dloss1 = dz_hat * inv_sd
-        dloss2 = dvar * (2.0 / batch_size) * z_mu
-        dloss3 = (1.0 / batch_size) * dmu
+        dloss2 = dvar * (2.0 / self.batch_size) * z_mu
+        dloss3 = (1.0 / self.batch_size) * dmu
         dloss = dloss1 + dloss2 + dloss3 # final partial derivatives, 
         return dloss
 
-    def update(self, learning_rate: float):
-        """Update parameters pass"""
+    def update(self, learning_rate: float) -> None:
+        """Updates the layer's learning parameters (gamma and beta) using the computed gradients.
+
+        This method applies gradient descent to adjust the learning parameters of the layer, 
+        minimizing the loss function during training.
+
+        #### Args
+            - `learning_rate` (`float`): The learning rate used to scale the gradient updates. 
+
+        #### Returns
+            - `None`: Updates the Layer's internal prameters and returns.
+        """
         self.gamma -= learning_rate * self.dgamma
         self.beta -= learning_rate * self.dbeta
-        return self.gamma, self.beta
+        return None

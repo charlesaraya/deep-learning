@@ -11,8 +11,8 @@ class Dropout (Layer):
     def __init__(self, rate: float = 0.5):
         """Initializes the Dropout layer.
         
-        Args:
-            rate (float): The dropout rate (the probability of dropping an neuron. i.e.)
+        #### Args
+            `rate` (`float`): The dropout rate (the probability of dropping an neuron. i.e.)
         """
         super(Dropout, self).__init__()
         if not (0 < rate < 1):
@@ -20,18 +20,18 @@ class Dropout (Layer):
         self.rate = rate
 
     def forward(self, Z: np.ndarray, is_training: bool = True) -> np.ndarray:
-        """Forward pass across the Dropout layer.
+        """Performs a forward pass through the layer.
 
         During training, it applies a mask to the activations that sets a random 
         fractions of the inputs tu 0, and scaling down the remaining activations.
         During inference, dropout is turned off, and all neurons are used.
 
-        Args:
-            Z (ndarray): The input activations to the dropout layer.
-            is_training (bool, optional): Indicates when the model is training.
+        #### Args
+            - `Z` (`np.ndarray`): The input activations to the dropout layer.
+            - `is_training` (`bool`, optional): Indicates when the model is training.
 
-        Returns:
-            ndarray: The output after applying dropout (or unchanged during inference).
+        #### Returns
+            `np.ndarray`: The output after applying dropout (or unchanged during inference).
         """
         if is_training:
             self.mask = (np.random.uniform(size=Z.shape) > self.rate).astype(float)
@@ -41,15 +41,14 @@ class Dropout (Layer):
             return Z
 
     def backward(self, dloss) -> np.ndarray:
-        """Backward pass through the Dropout layer.
+        """Performs a backward pass through the layer.
 
-        During backpropagation, the gradient is scaled by the same dropout mask used in the 
-        forward pass.
+        During backpropagation, the gradient is scaled by the same dropout mask used in the forward pass.
 
-        Args:
-            dloss (ndarray): The gradient of the loss with respect to the layer's output.
+        #### Args
+            - `dloss` (`np.ndarray`): The gradient of the loss w.r.t. the layer's output.
 
-        Returns:
-            ndarray: The gradient of the loss with respect to the input logits.
+        #### Returns
+            `np.ndarray`: The gradient of the loss w.r.t. the input logits.
         """
         return dloss * self.mask / (1 - self.rate)

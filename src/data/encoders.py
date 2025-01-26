@@ -20,8 +20,8 @@ class OneHotEncoder(Encoder):
     def encode(self, labels: np.ndarray):
         """Encodes each target label class into its one-hot format.
 
-        Args:
-            labels (ndarray): Array of integers representing the target labels.
+        #### Args
+            - `labels` (`np.ndarray`): Array of integers representing the target labels.
         """
         labels_encoded  = []
         labels = labels - self.label_offset # ensures labels are indexed at 0 (i.e EMNIST 1:26)
@@ -39,8 +39,8 @@ class SmoothLabelEncoder(Encoder):
     def encode(self, labels: np.ndarray):
         """Returns the softened one-hot encoding of each label class.
 
-        Args:
-            labels (ndarray): Array of integers representing the target labels.
+        #### Args
+            - `labels` (`np.ndarray`): Array of integers representing the target labels.
         """
         labels_encoded  = []
         labels = labels - self.label_offset

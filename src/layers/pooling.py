@@ -4,9 +4,10 @@ from typing import Literal
 from layers.layer import Layer
 
 class Pooling(Layer):
-    """A pooling layer for Convolutional Neural Networks (CNNs) that performs dimensionality 
-    reduction (downsampling) by applying a pooling operation (e.g., max or average) to input feature maps,
-    thus retaining the most important or representative features.
+    """A pooling layer for Convolutional Neural Networks (CNNs).
+    
+    A pooling layer performs dimensionality reduction (downsampling) by applying a pooling operation (
+    e.g., max or average) to input feature maps, thus retaining the most important or representative features.
     It enhances efficiency and robustness without contributing to the model's capacity to learn relationships in the data.
     """
     def __init__(
@@ -17,21 +18,15 @@ class Pooling(Layer):
             padding: int,
             mode: str = 'max'
         ):
-        """Initiliaze Pool Layer
+        """Initiliaze Pooling layer.
 
-        Args:
-            input_size (int): The size of the input feature map data, specified as height x width.
-            window_size (int): The size of the pooling window.
-            stride (int): The step size for sliding the pooling window across the input.
-            mode (str): The pooling mode, either 'max' for max pooling or 'avg' for average pooling.
-        
-        Methods:
-            forward(input):
-                Applies the pooling operation to the input feature maps during the forward pass.
-            
-            backward(grad_output):
-                Computes the gradient of the loss with respect to the input during the backward pass.
-                This is typically used in backpropagation to propagate gradients through the layer.
+        It supports configurable window size, stride, padding, and pooling operation.
+
+        #### Args
+            - `input_size` (`int`): The size of the input feature map data, specified as height x width.
+            - `window_size` (`int`): The size of the pooling window.
+            - `stride` (`int`): The step size for sliding the pooling window across the input.
+            - `mode` (`str`): The pooling mode, either 'max' for max pooling or 'avg' for average pooling.
         """
         self.pool_size = window_size
         self.stride = stride
@@ -69,7 +64,16 @@ class Pooling(Layer):
             return gradient_map
 
     def forward(self, input_data: np.ndarray, is_training: bool = True):
-        """Applies the pooling operation to the feature map tensor."""
+        """Performs a forward pass through the layer.
+
+        Applies the pooling operation to the feature map tensor.
+
+        #### Args
+            - `input_data` (`np.ndarray`): The input feature map for the layer.
+
+        #### Returns
+            - `np.ndarray`: The output pooling map of the layer result of the pooling operation.
+        """
         # Apply padding to input
         pad_width = ((0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding))
         self.input_data = np.pad(input_data, pad_width, mode ="constant") if self.padding > 0 else input_data
@@ -96,7 +100,16 @@ class Pooling(Layer):
         return self.poolmap
 
     def backward(self, output_gradient: np.ndarray):
-        """Computes the gradient of the loss with respect to the input."""
+        """Performs a backward pass through the layer.
+
+        This method computes the gradient of the loss w.r.t. the input.
+
+        #### Args
+            - `output_gradient` (`np.ndarray`): The gradient of the loss w.r.t. the next layer's output.
+
+        #### Returns
+            - `np.ndarray`: The gradient of the loss w.r.t. the layer's input.
+        """
         # Init gradients
         doutput = np.zeros_like(self.input_data)
 

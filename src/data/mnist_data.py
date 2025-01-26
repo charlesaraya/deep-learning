@@ -29,11 +29,11 @@ class MNISTDatasetManager:
         ):
         """MNIST Dataset Manager.
 
-        Args:
-            batch_size (int): Number of train samples used per batch.
-            encoder (Encoder): Encoder class that will encode label classes.
-            nlabels (int): Number of class labels.
-            label_offset (int): Offset of starting class label.
+        #### Args
+            - `batch_size` (`int`): Number of train samples used per batch.
+            - `encoder` (`Encoder`): Encoder class that will encode label classes.
+            - `nlabels` (`int`): Number of class labels.
+            - `label_offset` (`int`): Offset of starting class label.
         """
         self.batch_size = batch_size
         self.encoder: Encoder = ENCODERS[encoder](nlabels, label_offset)
@@ -56,11 +56,14 @@ class MNISTDatasetManager:
             raise ValueError('No training data available.')
 
         images, labels = self.train_data
-        images, labels = self._shuffle_data(images, labels) # Shuffle before each epoch reduce bias from the order of the data and speed up convergence.
+
+        # Shuffle before each epoch to reduce bias from the order of the data and speed up convergence.
+        images, labels = self._shuffle_data(images, labels) 
+
         data_length = images.shape[0]
         self.total_batches = ceil(data_length / self.batch_size)
-
         data_indices = np.arange(data_length)
+ 
         for start_idx in range(0, len(images), self.batch_size):
             end_idx = start_idx + self.batch_size
             batch_indices = data_indices[start_idx:end_idx]
@@ -73,15 +76,16 @@ class MNISTDatasetManager:
         such as MNIST. The file's structure is validated using a magic number, and the labels 
         are extracted as integers.
 
-        Args:
-            filepath (str): Path to the file or directory containing the label raw data.
+        #### Args
+            - `filepath` (`str`): Path to the file or directory containing the label raw data.
 
-        File Format:
-            The label file format is as follows:
+        #### File Format
+        The label file format is as follows:
             - Offset 0000: Magic number (4 bytes; 3rd byte indicates data type, 4th byte indicates dimensions).
             - Offset 0004: Dataset size (number of labels).
             - Offset 0008+: Labels (unsigned bytes, one per label).
-        References:
+
+        #### References
             - [Yann LeCun's MNIST Dataset Format](https://yann.lecun.com/exdb/mnist/)
         """
         with open(filepath, 'rb') as file:
@@ -96,14 +100,14 @@ class MNISTDatasetManager:
 
         Reads and parses image data from a binary file.
 
-        Args:
-            filepath (str): Path to the file or directory containing the image raw data.
-            channels (int, optional): The number of color channels in the image data (default = 0).
-                - `1`: Grayscale images.
+        #### Args
+            - `filepath` (`str`): Path to the file or directory containing the image raw data.
+            - `channels` (`int`, optional): The number of color channels in the image data.
+                - `1` (default): Grayscale images (default).
                 - `3`: RGB images.
 
-        File Format:
-            The image file format is as follows:
+        #### File Format
+        The image file format is as follows:
             - Offset 0000: Magic number (4 bytes; identifies the file type).
             - Offset 0004: Dataset size (number of images).
             - Offset 0008: Number of rows per image.
@@ -131,17 +135,16 @@ class MNISTDatasetManager:
             labels_filepath: str,
             channels: int = 1,
             type: str = Literal['train', 'test'],
-        ):
-        """Loads training or test datasets by combining images and labels. Additionally, 
-        it splits a validation subset from the data.
-        
-        Args:
-            images_filepath (str): Path to the file containing the raw image data.
-            labels_filepath (str): Path to the file containing the raw label data.
-            channels (int, optional): The number of color channels in the image data (default = 1).
-                - `1`: Grayscale images.
+        ) -> tuple[np.ndarray, np.ndarray]:
+        """Loads training or test datasets by combining images and labels.
+
+        #### Args
+            - `images_filepath` (`str`): Path to the file containing the raw image data.
+            - `labels_filepath` (`str`): Path to the file containing the raw label data.
+            - `channels` (`int`, optional): The number of color channels in the image data.
+                - `1` (default): Grayscale images (default).
                 - `3`: RGB images.
-            type (str): Specifies the dataset type. Must be one of:
+            - `type` (`str`): Specifies the dataset type. Must be one of:
                 - `train`: Loads data into `self.train_data`.
                 - `test`: Loads data into `self.test_data`.
         """
@@ -160,11 +163,11 @@ class MNISTDatasetManager:
     def _split_validation(self, validation_ratio: float = 0.1) -> tuple[np.ndarray, np.ndarray]:
         """Splits the validation set from the training set.
 
-        Args:
-            validation_ratio (float): The ratio of samples to include form the training set into the validation set (default = 0.1).
+        #### Args
+            - `validation_ratio` (`float`): The ratio of samples to include form the training set into the validation set (default = 0.1).
 
-        Returns:
-            tuple[np.ndarray, np.ndarray]: Returns the validation set.
+        #### Returns
+            - `tuple[np.ndarray, np.ndarray]`: The validation set.
         """
         if self.train_data is None:
             raise ValueError('No training data available.')
@@ -180,6 +183,15 @@ class MNISTDatasetManager:
         return self.validation_data
 
     def _shuffle_data(self, images: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Randomly shuffles the given images and their corresponding labels.
+
+        #### Args
+            - `images` (`np.ndarray`): An array of image data, where each row represents an individual image.
+            - `labels` (`np.ndarray`): An array of labels corresponding to the images.
+
+        #### Returns
+            - `tuple[np.ndarray, np.ndarray]`: The shuffled images and labels.
+        """
         num_samples = images.shape[0]
         indices = np.arange(num_samples)
         np.random.shuffle(indices)
@@ -199,18 +211,17 @@ class MNISTDatasetManager:
 
         Flattens, Normalizes image pixel values, transposes the data, shuffles the data.
 
-        Args:
-            validation_ratio (float, optional): The percentage of samples to include in the validation set from the training set (default = 0.1).
+        #### Args
+            - `validation_ratio` (`float`, optional): The percentage of samples to include in the validation set 
+            from the training set.
+                - `0.1` (default): Use 10% of the training set.
                 - `0`: No validation data will be created.
-            shuffle (bool, optional): Shuffles the dataset (default = False).
-            flatten (bool, optional): Flattens the dataset (default = True).
-            transpose (bool, optional): Transposes the image data (default = False).
-            debug_ratio (float, optional): Percentage of data to work with (default = 1).
-                - `1`: Use 100% of the training set, hence no debugging.
+            - `shuffle` (`bool`, optional): Shuffles the dataset (default = False).
+            - `flatten` (`bool`, optional): Flattens the dataset (default = True).
+            - `transpose` (`bool`, optional): Transposes the image data (default = False).
+            - `debug_ratio` (`float`, optional): Percentage of data to work with.
+                - `1` (default): Use 100% of the training set, hence no debugging.
                 - `0.2`: Use 20% of the training set.
-
-        Returns:
-            tuple: A tuple 2D np.ndarray's (images, labels).
         """
         if self.train_data is None:
             raise ValueError('No training data available.')
@@ -261,25 +272,26 @@ class MNISTDatasetManager:
         The `config` dictionary specifies the augmentation parameters for various transformations.
         Any key not present in the dictionary or with a value of `None` will be skipped.
 
-        Args:
-            config (dict | CfgNode): A dictionary containing the augmentation parameters with the following keys:
-                - 'rotation' (list[float, float]): Range of rotation angles in degrees (e.g., [-30, 30]).
-                - 'translation' (list[float, float]): Maximum translation offsets for x and y axes (e.g., [4, 4]).
-                - 'scale' (list[float, float]): Range for scaling factors (e.g., [0.8, 1.2]).
-                - 'shear' (list[float, float, float, float]): Shearing factors as [min_x, max_x, min_y, max_y].
-                - 'noise' (float): Standard deviation of Gaussian noise to be added to the data.
+        #### Args
+        - `config` (`dict` | CfgNode): A dictionary containing the augmentation parameters with the following keys:
+            - 'rotation' (list[float, float]): Range of rotation angles in degrees (e.g., [-30, 30]).
+            - 'translation' (list[float, float]): Maximum translation offsets for x and y axes (e.g., [4, 4]).
+            - 'scale' (list[float, float]): Range for scaling factors (e.g., [0.8, 1.2]).
+            - 'shear' (list[float, float, float, float]): Shearing factors as [min_x, max_x, min_y, max_y].
+            - 'noise' (float): Standard deviation of Gaussian noise to be added to the data.
 
-        Returns:
-            tuple (np.ndarray, ...): A tuple containing augmented data subsets. The number of elements in the tuple 
-                depends on which augmentations are applied.
+        #### Returns
+        - `tuple` [`np.ndarray`, ...]: A tuple containing augmented data subsets. The number of elements in the tuple 
+            depends on which augmentations are applied.
 
-        Notes: 
-            Excessive or inappropriate augmentation can lead to unrealistic samples that confuse the model. 
-            For MNIST:
-                - Rotation: ±15° to ±30°.
-                - Translation: ≤10% of the image dimensions.
-                - Scaling: 0.9x to 1.1x.
-            Affine transformation: pixel(x,y) -> pixel(a x + b y + c, d x + e y + f)
+        #### Notes
+        Excessive or inappropriate augmentation can lead to unrealistic samples that confuse the model. 
+        For MNIST:
+            - Rotation: ±15° to ±30°.
+            - Translation: ≤10% of the image dimensions.
+            - Scaling: 0.9x to 1.1x.
+
+        Affine transformation: pixel(x,y) -> pixel(a x + b y + c, d x + e y + f).
         """
         print(f"Data Augmentation Started...")
         print(f"Dataset size: {len(self.train_data[0])} samples")
@@ -311,12 +323,12 @@ class MNISTDatasetManager:
             print(f"Data was not augmentated.")
 
         return np.vsplit(self.train_data[0], num_sections), np.split(self.train_data[1], num_sections)
-    
+
     def _sample_extreme(self, min, max) -> int:
         """Return a value closer to the extremes between min and max"""
         sample = np.random.beta(0.4, 0.4)
         return min + sample * (max - min)
-        
+
     def _generate_rotation(self, img: Image.Image) -> np.ndarray:
         """Rotates image by a given angle."""
         min = self.config['rotation'][0]

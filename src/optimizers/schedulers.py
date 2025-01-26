@@ -22,15 +22,15 @@ class Scheduler:
         pass
 
 class WarmUpScheduler(Scheduler):
-    """The WarmUp Scheduler linearly increases the learning rate during a warm-up period."""
+    """Implements a warm up scheduler that linearly increases the learning rate during a warm-up period."""
     def __init__(self, base_scheduler: Scheduler, lr_start: float, lr_max: float, warmup_steps: float):
         """Initilize the WarmUp Scheduler.
 
-        Args:
-            base_scheduler (Scheduler): The main scheduler to use after warm-up.
-            lr_start (float): Starting learning rate for the warm-up period.
-            lr_max (float): Maximum learning rate to reach at the end of the warm-up period.
-            warmup_steps (int): Number of steps for the warm-up phase. When 0, then no warm up. 
+        #### Args
+            - `base_scheduler` (`Scheduler`): The main scheduler to use after warm-up.
+            - `lr_start` (`float`): Starting learning rate for the warm-up period.
+            - `lr_max` (`float`): Maximum learning rate to reach at the end of the warm-up period.
+            - `warmup_steps` (`int`): Number of steps for the warm-up phase. When 0, then no warm up. 
         """
         super(WarmUpScheduler, self).__init__()
         self.base_scheduler: Scheduler = base_scheduler
@@ -48,14 +48,14 @@ class WarmUpScheduler(Scheduler):
             return self.learning_rate
 
 class StepDecayScheduler(Scheduler):
-    """The Step Decay Scheduler reduces the learning rate by a factor after a set number of steps."""
+    """Implements a step decay scheduler that reduces the learning rate by a factor after a set number of steps."""
     def __init__(self, lr_start: float, step_size: int = 1, decay_factor: float = 0.9):
         """Initilize the Step Decay Scheduler. 
 
-        Args:
-            lr_start (float): Starting learning rate.
-            step_size (int): Number of steps between learning rate adjustments
-            decay_factor (float): Multiplicative factor by which to reduce the learning rate. (e.g., 0.1 for reducing the learning rate by 90%)
+        #### Args
+            - `lr_start` (`float`): The starting learning rate.
+            - `step_size` (`int`): The number of steps between learning rate adjustments.
+            - `decay_factor` (`float`): The multiplicative factor by which to reduce the learning rate. (e.g., 0.1 for reducing the learning rate by 90%.)
         """
         super(StepDecayScheduler, self).__init__()
         self.learning_rate = lr_start
@@ -65,21 +65,21 @@ class StepDecayScheduler(Scheduler):
     def get_lr(self):
         """Returns the learning rate at the current step based on step decay.
 
-        Returns:
-            float: Adjusted learning rate after applying step decay.
+        #### Returns
+            `float`: The adjusted learning rate after applying step decay.
         """
         if self.current_step > 0 and self.current_step % self.step_size == 0:
             self.learning_rate *= self.decay_factor
         return self.learning_rate
 
 class ExponentialDecayScheduler(Scheduler):
-    """The Exponential Decay Scheduler smoothly decreases the learning rate exponentially."""
+    """Implements an exponential decay scheduler that smoothly decreases the learning rate exponentially."""
     def __init__(self, lr_start: float, decay_rate: float = 0.001):
         """Initilize the Exponential Decay Scheduler.
 
-        Args:
-            lr_start (float): Initial learning rate
-            decay_rate (float): The rate at which the learning rate decays after each step.
+        #### Args
+            - `lr_start` (`float`): The initial learning rate.
+            - `decay_rate` (`float`): The rate at which the learning rate decays after each step.
         """
         super(ExponentialDecayScheduler, self).__init__()
         self.lr_start = lr_start
@@ -88,21 +88,21 @@ class ExponentialDecayScheduler(Scheduler):
     def get_lr(self):
         """Returns the learning rate at the current step based on exponential decay.
 
-        Returns:
-            float: Adjusted learning rate after applying exponential decay.
+        #### Returns
+            `float`: The adjusted learning rate after applying exponential decay.
         """
         self.learning_rate = self.lr_start * math.exp(-self.decay_rate * self.current_step)
         return self.learning_rate
 
 class CosineAnnealingScheduler(Scheduler):
-    """The Cosine Annealing Scheduler decreases the learning rate following a cosine function pattern."""
+    """Implements a cosine annealing scheduler decreases the learning rate following a cosine function pattern."""
     def __init__(self, lr_start: float, total_steps: int, min_lr: float = 0.01):
         """Initilize the Cosine Annealing Scheduler. 
 
-        Args:
-            lr_start (float): Initial learning rate
-            total_steps (float): Total number of steps for the annealing schedule
-            min_lr (float): Minimum learning rate to reach by the end
+        #### Args
+            - `lr_start` (`float`): The initial learning rate.
+            - `total_steps` (`float`): The total number of steps for the annealing schedule.
+            - `min_lr` (`float`): The minimum learning rate to reach by the end.
         """
         super(CosineAnnealingScheduler, self).__init__()
         self.lr_start = lr_start
@@ -112,13 +112,27 @@ class CosineAnnealingScheduler(Scheduler):
     def get_lr(self):
         """Returns the learning rate based on cosine annealing.
 
-        Returns:
-            float: Adjusted learning rate after applying cosine function decay.
+        #### Returns
+            `float`: The adjusted learning rate after applying cosine function decay.
         """
         self.learning_rate = self.min_lr + 0.5 * (self.lr_start - self.min_lr) * (1 + math.cos(math.pi * self.current_step / self.total_steps))
         return self.learning_rate
 
 def plot_schedule(scheduler: Scheduler, epochs: int, steps_per_epoch: int, filepath: str = None):
+    """Plots the learning rate schedule over the training process.
+
+    This function generates a plot that visualizes how the learning rate changes throughout the training process based 
+    on the provided scheduler. The plot can be saved to a file if a file path is provided.
+
+    #### Args
+        `scheduler` (`Scheduler`): The scheduler object that determines the learning rate adjustment over epochs.
+        - `epochs` (`int`): The total number of training epochs.
+        - `steps_per_epoch` (`int`): The number of steps (batches) per epoch.
+        - `filepath` (`str`, optional): If provided, saves the plot to the specified file path. If not provided, the plot is displayed but not saved.
+
+    #### Returns
+        `None`: Displays the plot or saves it to a file if `filepath` is provided.
+    """
     learning_rates = []
     for epoch in range(epochs):
         for step in range(steps_per_epoch):

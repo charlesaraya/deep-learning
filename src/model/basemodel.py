@@ -24,7 +24,15 @@ class BaseModel:
         self.validation_losses = []
 
     def add(self, layer: Layer):
-        """Adds a layer to the model"""
+        """Adds a layer to the model's architecture
+
+        This method appends a new layer to the model's list of layers, allowing for the 
+        sequential construction of the model's architecture. Layers are processed in the 
+        order they are added.
+
+        #### Args
+        - `layer` (`Layer`): The layer to be added to the model.
+        """
         self.layers.append(layer)
 
     def __str__(self):
@@ -36,11 +44,11 @@ class BaseModel:
     def forward(self, X: np.ndarray, is_training: bool = True) -> np.ndarray:
         """Performs the forward pass through the network.
 
-        Args:
-            X (ndarray): Input data. Each row corresponds to a sample and each column corresponds to a feature.
+        #### Args
+            - `X` (`np.ndarray`): The input data. Each row corresponds to a sample and each column corresponds to a feature.
 
-        Returns:
-            ndarray: Output of the network. Each row corresponds to the predicted values for each sample, and each column corresponds to a target label.
+        #### Returns
+            - `np.ndarray`: The output of the network. Each row corresponds to the predicted values for each sample, and each column corresponds to a target label.
         """
         output = X
         for layer in self.layers:
@@ -52,29 +60,31 @@ class BaseModel:
 
         Computing the gradients of the loss w.r.t. the model parameters, and updates the weights and biases.
 
-        Args:
-            y_hat (ndarray): Predicted probabilities from the forward pass.
-            y (ndarray): The true target labels for each training sample.
+        #### Args
+            - `y_hat` (`np.ndarray`): Predicted probabilities from the forward pass.
+            - `y` (`np.ndarray`): The true target labels for each training sample.
         """
         for layer in reversed(self.layers):
             grad = layer.backward(grad)
 
-    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int, loss_fn: str = 'cross-entropy-loss', start_epoch: int = 0, checkpoint: list = None) -> dict:
+    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int, loss_fn: str, start_epoch: int = 0, checkpoint: list = None) -> dict:
         """Trains the MLP on the training data.
-        
+
         Performs forward and backward passes at a given learning rate, and over a number of epochs.
 
-        Args:
-            datamanager (MNISTDatasetManager): A DataManager class containing the training and validation data, as well as an iterator for mini-batch.
-            epochs (int): The number of times the model will iterate over the entire training dataset.
-            learning_rate (float): The learning rate used for gradient descent to update the model parameters.
+        #### Args
+            - `datamanager` (`MNISTDatasetManager`): A DataManager class containing the training and validation data, as well as an iterator for mini-batch.
+            - `epochs` (int): The number of times the model will iterate over the entire training dataset.
+            - `loss_fn` (`str`): The loss function to be used to calculate the predictive error of the model.
+            - `start_epoch` (`int`): 
+            - `checkpoint` (`list`): Checkpoint settings (default = `None`).
 
-        Returns:
-            dict: Dictionary containing the following:
-            - 'weights' (list[ndarray]): Final weights of the model.
-            - 'bias' (list[ndarray]): Final biases of the model.
-            - 'training_accuracies' (list): Training accuracy values recorded at each epoch.
-            - 'training_losses' (list): Training loss values recorded at each epoch.
+        #### Returns
+            - dict: Dictionary containing the following:
+                - `'weights'` (`list[np.ndarray]`): Final weights of the model.
+                - `'bias'` (`list[np.ndarray]`): Final biases of the model.
+                - `'training_accuracies'` (`list[float]`): Training accuracy values recorded at each epoch.
+                - `'training_losses'` (`list[float]`): Training loss values recorded at each epoch.
         """
         self.epochs = epochs - start_epoch
         self.datamanager = datamanager
@@ -87,10 +97,7 @@ class BaseModel:
                 batch_accuracies, batch_losses = [], []
                 self.current_epoch = start_epoch + epoch + 1 # used to track checkpoint's epoch. Offset required to skip 0 index.
 
-                """ with trange(datamanager.batch_size) as b:
-                    for batch in b:
-                        b.set_description(f"Batch {batch+1}") # Monitor epoch progress in terminal """
-                i=0
+                i =   0
                 total_batches = ceil(datamanager.train_data[0].shape[0] / datamanager.batch_size)
                 with tqdm(total=total_batches) as b:
                     for X_batch, y_batch in tqdm(datamanager):
@@ -146,7 +153,7 @@ class BaseModel:
 
                 # Checkpoint
                 if checkpoint and (epoch+1) % checkpoint[1] == 0 and epoch > 0:
-                    self.save_checkpoint(checkpoint[0], self.current_epoch)
+                    self.save_checkpoint(checkpoint[0])
 
                 # Monitoring Metrics
                 t.set_postfix(
@@ -172,11 +179,10 @@ class BaseModel:
         }
 
     def load_checkpoint(self, filepath: str):
-        """
-        Load serialized model with weights and biases.
+        """Load serialized model with weights and biases.
 
-        Args:
-            filepath (str): Filepath to the model checkpoint.
+        #### Args
+            - `filepath` (`str`): Filepath to the model checkpoint.
         """
         with open(filepath,'rb') as f:
             nn_model: BaseModel = pickle.load(f, encoding='bytes')
@@ -195,17 +201,16 @@ class BaseModel:
         self.epochs = nn_model.epochs
         self.current_epoch = nn_model.current_epoch
 
-    def save_checkpoint(self, directory: str, current_epoch):
-        """
-        Save serialized model of neural network.
+    def save_checkpoint(self, directory: str):
+        """Save serialized model of neural network.
 
-        Args:
-            directory (str): Directory name for the model checkpoint.
+        #### Args
+            - `directory` (`str`): Directory name for the model checkpoint.
         """
         self.random_state = np.random.get_state()
 
         model_name = self.__str__()
-        model_details = f"{model_name}_e{current_epoch}of{self.epochs}_b{self.datamanager.batch_size}.pkl"
+        model_details = f"{model_name}_e{self.current_epoch}of{self.epochs}_b{self.datamanager.batch_size}.pkl"
 
         modelpath = os.path.join(directory, model_name)
         filepath = os.path.join(modelpath, model_details)

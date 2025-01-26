@@ -7,11 +7,17 @@ class Flatten(Layer):
         super(Flatten, self).__init__()
 
     def forward(self, input_data: np.ndarray, is_training: bool = True) -> np.ndarray:
-        """Reshapes the input for the next layer (From PoolLayer to DenseLayer)"""
+        """Performs a forward pass through the layer.
+
+        Reshapes the input for the next layer (From PoolLayer to DenseLayer).
+        """
         self.prev_shape = input_data.shape
         flattened_shape = np.prod(self.prev_shape[1:])
         return input_data.reshape(input_data.shape[0], flattened_shape)
 
     def backward(self, output_gradient: np.ndarray) -> np.ndarray:
-        """Reshapes the gradients for the previous layer (From DenseLayer to PoolLayer)"""
+        """Performs a backward pass through the layer.
+
+        Reshapes the gradients for the previous layer (From DenseLayer to PoolLayer)
+        """
         return output_gradient.reshape(self.prev_shape)

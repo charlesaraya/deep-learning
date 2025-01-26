@@ -4,27 +4,30 @@ from typing import Literal
 from layers.layer import Layer
 
 class ConvLayer(Layer):
-    """A convolutional layer for Convolutional Neural Networks (CNNs) that performs 
-    convolution operations on input data to extract spatial features.
+    """Implements a convolutional layer for Convolutional Neural Networks (CNNs).
+
+    A convolutional layer applies convolutional operations to input data, enabling the extraction of spatial features.
     """
     def __init__(
-            self,
-            shape: tuple,
-            kernel_num: int,
-            kernel_size: int = 3,
-            weight_init: str = Literal['random', 'xavier', 'he'],
-            stride: int = 1,
-            padding: int = 0
-        ):
-        """Initialize Convolution Layer.
+        self,
+        shape: tuple,
+        kernel_num: int,
+        kernel_size: int = 3,
+        weight_init: str = Literal['random', 'xavier', 'he'],
+        stride: int = 1,
+        padding: int = 0
+    ):
+        """Initialize the ConvLayer layer.
 
-        Args:
-            shape (shape): The shape of the input data, specified as (batch_size, channels, input height, input width)).
-            kernel_num (int): The number of filters (kernels) used.
-            kernel_size (int): The size of the filter kernel.
-            weight_init (str): The weight initilization mode.
-            stride (int): The step size by which the kernel moves across the input feature map.
-            padding (int): The amount of zero-padding added to the input feature map's borders.
+        It supports configurable kernel size, stride, padding, and weight initialization strategies.
+
+        #### Args
+            - 'shape' (`tuple`): The shape of the input data, specified as (batch_size, channels, input height, input width)).
+            - `kernel_num` (`int`): The number of filters (kernels) used.
+            - `kernel_size` (`int`): The size of the filter kernel.
+            - `weight_init` (`str`): The weight initilization mode.
+            - `stride` (`int`): The step size by which the kernel moves across the input feature map.
+            - `padding` (`int`): The amount of zero-padding added to the input feature map's borders.
         """
         self.kernel_num = kernel_num
         self.kernel_size = kernel_size
@@ -49,7 +52,14 @@ class ConvLayer(Layer):
         self.bias = np.zeros(kernel_num)
 
     def init_kernels(self, input_channels: int, kernel_num: int, kernel_size: int, weight_init: str):
-        """Initiliase Kernel weights using a given strategy"""
+        """Initiliase Kernel weights using a given strategy
+
+        #### Args
+            - `weight_init` (`str`): The strategy for initializing weights. Options include:
+                - `'random'`: Initializes weights with small random values scaled by 0.01.
+                - `'xavier'`: Uses the Xavier/Glorot uniform initialization, suitable for layers with sigmoid or tanh activations.
+                - `'he'`: Uses He initialization, ideal for layers with ReLU or Leaky ReLU activations.
+        """
         match weight_init:
             case 'random':
                 return np.random.randn(kernel_num, input_channels, kernel_size, kernel_size) * 0.01
@@ -66,10 +76,20 @@ class ConvLayer(Layer):
         return np.pad(input_data, pad_width, mode ="constant") if padding > 0 else input_data
 
     def _flip_kernel(self, kernel: np.ndarray):
+        """Rotates the kernel 180 degrees."""
         return np.flip(np.flip(kernel, axis=0), axis=1)
 
     def forward(self, input_data: np.ndarray, is_training: bool = True) -> np.ndarray:
-        """Applies convolution operations to the input data to produce the feature map tensor."""
+        """Performs a forward pass through the layer.
+
+        Applies convolution operations to the input data to produce the feature map tensor.
+
+        #### Args
+            - `input_data` (`np.ndarray`): The input data for the layer.
+
+        #### Returns
+            - `np.ndarray`: The output feature map of the layer result of the convolution operation.
+        """
         # Apply padding
         self.input_data = self._pad_data(input_data, self.padding)
 
@@ -96,7 +116,16 @@ class ConvLayer(Layer):
         return self.featmap
 
     def backward(self, output_gradient: np.ndarray):
-        """Computes the gradients of the loss with respect to the input."""
+        """Performs the backward pass through the layer.
+
+        This method computes the gradients of the loss w.r.t. the kernel weights, bias, and input.
+
+        #### Args
+            - `output_gradient` (`np.ndarray`): The gradient of the loss w.r.t. the next layer's output.
+
+        #### Returns
+            - `np.ndarray`: The gradient of the loss w.r.t. the layer's input.
+        """
         # Init gradients
         dinput = np.zeros_like(self.input_data)
         self.dkernels = np.zeros_like(self.kernels)
@@ -132,11 +161,21 @@ class ConvLayer(Layer):
 
         return dinput
 
-    def update(self, learning_rate: float):
-        """Update parameters pass"""
+    def update(self, learning_rate: float) -> None:
+        """Performs the update pass through the layer.
+
+        This method applies gradient descent to adjust the kernel weights and biases of the layer, 
+        minimizing the loss function during training.
+
+        #### Args
+            - `learning_rate` (`float`): The learning rate used to scale the gradient updates. 
+
+        #### Returns
+            - `None`: Updates the Layer's internal prameters and returns.
+        """
         self.kernels -= learning_rate * self.dkernels
         self.bias -= learning_rate * self.dbias
-        return self.kernels, self.bias
+        return None
 
 if __name__ == "__main__":
     import time

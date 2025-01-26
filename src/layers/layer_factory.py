@@ -22,10 +22,36 @@ LAYERS = {
 }
 
 class LayerFactory:
+    """Implements a factory class for creating layers based on configuration.
+
+    This class provides an interface for creating layers dynamically by mapping 
+    layer types to their respective classes. It uses a configuration dictionary 
+    that defines the layer type and its parameters. The factory ensures that 
+    only valid layer types are used and can handle parameter parsing for different 
+    layers.
+    """
     def __init__(self):
+        """Initializes the LayerFactory with a predefined layer map.
+
+        The layer map is a dictionary containing the mapping between layer names 
+        and their associated layer class constructors (e.g., convolutional, dense, etc.)
+        """
         self.layer_map = LAYERS
 
     def create(self, layer_config):
+        """Creates a layer based on the provided configuration.
+
+        This method parses the configuration dictionary to extract the layer type and its parameters. 
+        It validates the layer type and initializes the corresponding layer with the provided parameters.
+
+        #### Args
+            - `layer_config` (`dict`): A dictionary containing the layer configuration. 
+                - `'name'`: Specifies the layer type (e.g., `'dense'`, `'sigmoid'`, `'dropout'`),
+                - `'params'` (optional): Specifies the parameters for initializing the layer.
+
+        #### Returns
+            - `object`: The instance of the specified layer class initialized with the provided parameters.
+        """
         layer_type = layer_config['name']
         if layer_type not in self.layer_map:
             raise ValueError(f'Unknown layer type: {layer_type}')
