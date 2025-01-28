@@ -1,19 +1,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-class Loss:
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def forward(y_hat: np.ndarray, y: np.ndarray) -> float:
-        """Forward pass"""
-        pass
-
-    @abstractmethod
-    def backward(y_hat: np.ndarray, y: np.ndarray) -> float:
-        """Backward pass"""
-        pass
+from losses.loss import Loss
 
 class CrossEntropyLoss(Loss):
     """Implements the Cross-Entropy loss function.

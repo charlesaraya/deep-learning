@@ -2,6 +2,8 @@ import numpy as np
 from abc import ABC, abstractmethod
 
 class Layer:
+    """Layer base class.
+    """
     def __init__(self, input_size: int = 0, output_size: int = 0, **kwargs):
         self.shape = (input_size, output_size)
         self.name = kwargs['name']
