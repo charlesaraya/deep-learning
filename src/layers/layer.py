@@ -6,8 +6,11 @@ class Layer:
     """
     def __init__(self, input_size: int = 0, output_size: int = 0, name: str = None, uid: int = None):
         self.shape = (input_size, output_size)
-        name = name if name is not None else self.__class__.__name__
-        self.name = f"{str.lower(name)}_{uid}"
+
+        self.name = name if name is not None else self.__class__.__name__
+        self.name = str.lower(name)
+        if uid is not None:
+            self.name = f"{self.name}_{uid}"
 
     @abstractmethod
     def forward(self, input: np.ndarray, is_training: bool = True):
