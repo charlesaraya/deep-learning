@@ -47,6 +47,10 @@ def get_cfg_defaults():
     _C.epochs = 2
     _C.loss_fn = 'cross-entropy-loss'
 
+    _C.model = CfgNode()
+    _C.model.name = None
+    _C.model.show_summary = False
+
     # Checkpoint configuration
     _C.checkpoint = CfgNode()
     _C.checkpoint.filepath = './results/checkpoints/'

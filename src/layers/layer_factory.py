@@ -37,6 +37,7 @@ class LayerFactory:
         and their associated layer class constructors (e.g., convolutional, dense, etc.)
         """
         self.layer_map = LAYERS
+        self.production = {}
 
     def create(self, layer_config):
         """Creates a layer based on the provided configuration.
@@ -52,10 +53,19 @@ class LayerFactory:
         #### Returns
             - `object`: The instance of the specified layer class initialized with the provided parameters.
         """
-        layer_type = layer_config['name']
-        if layer_type not in self.layer_map:
-            raise ValueError(f'Unknown layer type: {layer_type}')
+        layer_name = layer_config['name']
+
+        if layer_name not in self.production.keys():
+            self.production[layer_name] = 1
+        else:
+            self.production[layer_name] += 1
+
+        layer_params = layer_config.get('params', {}).copy()
+        layer_params['uid'] = self.production[layer_name]
+
+        if layer_name not in self.layer_map:
+            raise ValueError(f'Unknown layer type: {layer_name}')
         # YACS loads yaml tuples as strings
         if 'params' in layer_config and 'shape' in layer_config['params']:
-            layer_config['params']['shape'] = ast.literal_eval(layer_config['params']['shape'])
-        return self.layer_map[layer_type](**layer_config.get('params', {}))
+            layer_params['shape'] = ast.literal_eval(layer_config['params']['shape'])
+        return self.layer_map[layer_name](**layer_params)

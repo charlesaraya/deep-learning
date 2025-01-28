@@ -13,12 +13,13 @@ from losses.losses import Loss, LOSS_FN
 class Model:
     """Model base class.
     """
-    def __init__(self):
+    def __init__(self, name: str = None):
         self.layers: list[Layer] = []
         self.training_accuracies = []
         self.training_losses = []
         self.validation_accuracies = []
         self.validation_losses = []
+        self.name = name if name is not None else self.__class__.__name__
 
     def add(self, layer: Layer):
         """Adds a layer to the model's architecture
@@ -31,6 +32,15 @@ class Model:
         - `layer` (`Layer`): The layer to be added to the model.
         """
         self.layers.append(layer)
+
+    def summary(self):
+        print(f"Model: {self.name}")
+        print(f"{"─" * 50}")
+        print(f"Layer (type)")
+        print(f"{"=" * 50}")
+        for layer in self.layers:
+            print(f"{layer.name} ({layer.__class__.__name__})")
+            print(f"{"─" * 50}")
 
     def __str__(self):
         self.name = f'model[{self.layers[0].shape[0]}'

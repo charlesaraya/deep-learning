@@ -3,7 +3,7 @@ import json
 import os
 from math import ceil
 
-from model.basemodel import Model
+from model.model import Model
 from data.mnist_data import MNISTDatasetManager
 from optimizers.scheduler_factory import SchedulerFactory
 from layers.layer_factory import LayerFactory
@@ -52,9 +52,12 @@ class ExperimentRunner:
 
         # Init Model
         layer_factory = LayerFactory()
-        self.model: Model = model()
+        self.model: Model = model(self.config['model']['name'])
         for layer in self.config['layers']:
             self.model.add(layer_factory.create(layer))
+
+        if self.config['model']['name']:
+            self.model.summary()
 
     def run(self) -> None:
         """Runs an experiment for a given configuration."""

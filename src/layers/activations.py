@@ -70,7 +70,7 @@ class Tanh(Layer):
     Does not solve the vanishing gradient problem that sigmoids suffers.
     """
     def __init__(self, **kwargs):
-        super(Tanh, self).__init__()
+        super(Tanh, self).__init__(**kwargs)
 
     def forward(self, Z: np.ndarray, is_training: bool = True) -> np.ndarray:
         """Performs the forward pass through the layer.
@@ -135,7 +135,7 @@ class ReLU(Layer):
                 - `0`(default): Performs regular ReLU activation.
                 - `alpha` >`0`: Performs Leaky ReLU activation.
         """
-        super(ReLU, self).__init__()
+        super(ReLU, self).__init__(**kwargs)
         self.alpha = alpha
 
     def forward(self, Z: np.ndarray, is_training: bool = True) -> np.ndarray:
@@ -188,7 +188,7 @@ class SoftMax(Layer):
     ensuring that the output values are in the range [0, 1] and sum to 1 across each sample.
     """
     def __init__(self, **kwargs):
-        super(SoftMax, self).__init__()
+        super(SoftMax, self).__init__(**kwargs)
 
     def forward(self, Z: np.ndarray, is_training: bool = True) -> np.ndarray:
         """Performs the forward pass through the layer.
