@@ -28,8 +28,8 @@ class Sigmoid(Layer):
     gradient saturation, and slow convergence. After numerous iterations the value of gradient are so small
     that the weights get updated very slowly.
     """
-    def __init__(self):
-        super(Sigmoid, self).__init__()
+    def __init__(self, **kwargs):
+        super(Sigmoid, self).__init__(**kwargs)
 
     def forward(self, Z: np.ndarray, is_training: bool = True) -> np.ndarray:
         """Performs the forward pass through the layer.
@@ -69,7 +69,7 @@ class Tanh(Layer):
     Preferred over Sigmoid as it gives better performance for multi-layer neural networks. 
     Does not solve the vanishing gradient problem that sigmoids suffers.
     """
-    def __init__(self):
+    def __init__(self, **kwargs):
         super(Tanh, self).__init__()
 
     def forward(self, Z: np.ndarray, is_training: bool = True) -> np.ndarray:
@@ -127,7 +127,7 @@ class ReLU(Layer):
     To resolve the dead neuron issues in tasks that may suffer from sparse gradients, the leaky ReLU was proposed with a small 
     negative slope to the ReLU to sustain and keep the weight updates alive during the entire propagation process.
     """
-    def __init__(self, alpha: float = 0):
+    def __init__(self, alpha: float = 0, **kwargs):
         """Initiliases ReLU layer with optional alpha to turn it into Leaky ReLU
 
         #### Args
@@ -187,7 +187,7 @@ class SoftMax(Layer):
     The softmax function converts logits (raw scores) into a probability distribution, 
     ensuring that the output values are in the range [0, 1] and sum to 1 across each sample.
     """
-    def __init__(self):
+    def __init__(self, **kwargs):
         super(SoftMax, self).__init__()
 
     def forward(self, Z: np.ndarray, is_training: bool = True) -> np.ndarray:

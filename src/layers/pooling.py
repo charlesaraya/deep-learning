@@ -16,7 +16,8 @@ class Pooling(Layer):
             window_size: int,
             stride: int,
             padding: int,
-            mode: str = 'max'
+            mode: str = 'max',
+            **kwargs
         ):
         """Initiliaze Pooling layer.
 
@@ -32,13 +33,15 @@ class Pooling(Layer):
         self.stride = stride
         self.padding = padding
 
+        name = mode + '_' + kwargs['name']
+
         # Extract indexes
         batch_size, self.kernel_num, input_height, input_width = shape
         self.poolmap_size = (input_height + 2*self.padding - self.pool_size) // self.stride + 1
 
         input_size = batch_size * self.kernel_num * input_height * input_width
         output_size = batch_size * self.kernel_num * self.poolmap_size**2
-        super(Pooling, self).__init__(input_size, output_size)
+        super(Pooling, self).__init__(input_size, output_size, name)
 
         POOLING_FN = {
             'max': self._max_pooling,

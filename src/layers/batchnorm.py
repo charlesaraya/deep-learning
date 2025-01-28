@@ -12,7 +12,7 @@ class BatchNorm(Layer):
 
     It also introduces learnable parameters for scaling (gamma) and shifting (beta) the normalized output.
     """
-    def __init__(self, momentum: float = 0.95):
+    def __init__(self, momentum: float = 0.95, **kwargs):
         """Initializes the BatchNorm layer.
 
         #### Args
@@ -20,7 +20,7 @@ class BatchNorm(Layer):
             Larger values make the running statistics adapt more slowly to new data, while smaller values allow faster adaptation.
         """
         self.momentum = momentum
-        super(BatchNorm, self).__init__()
+        super(BatchNorm, self).__init__(**kwargs)
 
         self.axis_op = None
         self.is_initiliazed = False

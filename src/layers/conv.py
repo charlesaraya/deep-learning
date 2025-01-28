@@ -15,7 +15,8 @@ class Conv(Layer):
         kernel_size: int = 3,
         weight_init: str = Literal['random', 'xavier', 'he'],
         stride: int = 1,
-        padding: int = 0
+        padding: int = 0,
+        **kwargs
     ):
         """Initialize the ConvLayer layer.
 
@@ -40,7 +41,7 @@ class Conv(Layer):
 
         input_size = batch_size * input_channels * input_height * input_width
         output_size = self.kernel_num * self.featmap_size**2
-        super(Conv, self).__init__(input_size, output_size)
+        super(Conv, self).__init__(input_size, output_size, **kwargs)
 
         # Initiliaze kernel weights
         self.kernels = self.init_kernels(

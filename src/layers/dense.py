@@ -12,7 +12,8 @@ class Dense(Layer):
         self,
         shape: tuple,
         weight_init: str = Literal['random', 'xavier', 'he'],
-        activation: None | str = None
+        activation: None | str = None,
+        **kwargs
     ):
         """Initializes the Dense (fully connected) layer.
 
@@ -29,7 +30,7 @@ class Dense(Layer):
             - activation (None | str, optional): The activation function to be applied after the linear transformation. 
                 Pass `None` for no activation (default = None).
         """
-        super(Dense, self).__init__(*shape)
+        super(Dense, self).__init__(*shape, **kwargs)
         # Initiliaze weights and bias
         self.weights = self.init_weight(weight_init)
         self.bias = np.zeros((1, self.shape[1]))

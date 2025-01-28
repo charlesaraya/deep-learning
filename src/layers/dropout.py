@@ -8,13 +8,13 @@ class Dropout (Layer):
     Dropout randomly deactivates a fraction of the input units during training to reduce overfitting. 
     During inference, the activations are scaled to maintain consistency with the training phase.
     """
-    def __init__(self, rate: float = 0.5):
+    def __init__(self, rate: float = 0.5, **kwargs):
         """Initializes the Dropout layer.
         
         #### Args
             `rate` (`float`): The dropout rate (the probability of dropping an neuron. i.e.)
         """
-        super(Dropout, self).__init__()
+        super(Dropout, self).__init__(**kwargs)
         if not (0 < rate < 1):
             raise ValueError("Rate must be between 0 and 1.")
         self.rate = rate

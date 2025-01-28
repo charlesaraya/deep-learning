@@ -3,8 +3,8 @@ import numpy as np
 from layers.layer import Layer
 
 class Flatten(Layer):
-    def __init__(self):
-        super(Flatten, self).__init__()
+    def __init__(self, **kwargs):
+        super(Flatten, self).__init__(**kwargs)
 
     def forward(self, input_data: np.ndarray, is_training: bool = True) -> np.ndarray:
         """Performs a forward pass through the layer.
