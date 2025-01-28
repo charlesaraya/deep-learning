@@ -266,7 +266,7 @@ class MNISTDatasetManager:
 
         return None
 
-    def augment(self, config) -> tuple:
+    def augment(self, config, verbose: bool = False) -> tuple:
         """Applies data augmentation transformations to the dataset based on the provided configuration.
 
         The `config` dictionary specifies the augmentation parameters for various transformations.
@@ -293,8 +293,9 @@ class MNISTDatasetManager:
 
         Affine transformation: pixel(x,y) -> pixel(a x + b y + c, d x + e y + f).
         """
-        print(f"Data Augmentation Started...")
-        print(f"Dataset size: {len(self.train_data[0])} samples")
+        if verbose:
+            print(f"Data Augmentation Started...")
+            print(f"Dataset size: {len(self.train_data[0])} samples")
         start_time = time.time()
 
         self.config = config
@@ -315,12 +316,13 @@ class MNISTDatasetManager:
         self.train_data = images, labels
 
         end_time = time.time()
-        if num_sections > 1:
-            print(f"Data Augmentation Completed!")
-            print(f"Total samples after augmentation: {len(self.train_data[0])}")
-            print(f"Time Taken: {end_time - start_time:.2f} seconds")
-        else:
-            print(f"Data was not augmentated.")
+        if verbose:
+            if num_sections > 1:
+                print(f"Data Augmentation Completed!")
+                print(f"Total samples after augmentation: {len(self.train_data[0])}")
+                print(f"Time Taken: {end_time - start_time:.2f} seconds")
+            else:
+                print(f"Data was not augmentated.")
 
         return np.vsplit(self.train_data[0], num_sections), np.split(self.train_data[1], num_sections)
 
