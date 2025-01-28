@@ -1,16 +1,16 @@
 import ast
 
-from layers.denselayer import DenseLayer
-from layers.convlayer import ConvLayer
+from layers.dense import Dense
+from layers.conv import Conv
 from layers.flatten import Flatten
 from layers.batchnorm import BatchNorm
 from layers.activations import *
 from layers.pooling import Pooling
-from layers.regularizations import Dropout
+from layers.dropout import Dropout
 
 LAYERS = {
-    'dense': DenseLayer,
-    'conv2D': ConvLayer,
+    'dense': Dense,
+    'conv2D': Conv,
     'batchnorm': BatchNorm,
     'sigmoid': Sigmoid,
     'tanh': Tanh,

@@ -5,7 +5,7 @@ from tqdm import tqdm, trange
 from layers.activations import ACTIVATION_FN
 import layers.losses as loss_fn
 from layers.batchnorm import BatchNorm
-from layers.regularizations import Dropout
+from layers.dropout import Dropout
 
 np.random.seed(42)
 

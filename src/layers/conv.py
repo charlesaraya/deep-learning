@@ -3,7 +3,7 @@ from typing import Literal
 
 from layers.layer import Layer
 
-class ConvLayer(Layer):
+class Conv(Layer):
     """Implements a convolutional layer for Convolutional Neural Networks (CNNs).
 
     A convolutional layer applies convolutional operations to input data, enabling the extraction of spatial features.
@@ -40,7 +40,7 @@ class ConvLayer(Layer):
 
         input_size = batch_size * input_channels * input_height * input_width
         output_size = self.kernel_num * self.featmap_size**2
-        super(ConvLayer, self).__init__(input_size, output_size)
+        super(Conv, self).__init__(input_size, output_size)
 
         # Initiliaze kernel weights
         self.kernels = self.init_kernels(
@@ -208,7 +208,7 @@ if __name__ == "__main__":
     pool_mode = 'avg'
     poolmap_size = (featmap_size + 2*pool_padding - pool_size) // pool_stride + 1
 
-    cov1 = ConvLayer(
+    cov1 = Conv(
         (batch_size, channels, image_size, image_size),
         kernel_num = kernel_num,
         kernel_size = kernel_size,

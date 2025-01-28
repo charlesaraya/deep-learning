@@ -5,14 +5,10 @@ import os
 import pickle
 
 from data.mnist_data import MNISTDatasetManager
-from data.encoders import OneHotEncoder, SmoothLabelEncoder
-from optimizers.schedulers import Scheduler, WarmUpScheduler, StepDecayScheduler, plot_schedule
+from optimizers.schedulers import Scheduler
 from layers.layer import Layer
-from layers.denselayer import DenseLayer
-from layers.regularizations import Dropout
-from layers.batchnorm import BatchNorm
+from layers.dense import Dense
 from layers.losses import Loss, LOSS_FN
-from layers.activations import ACTIVATION_FN, Sigmoid, Tanh, SoftMax, ReLU
 
 class BaseModel:
 
@@ -37,7 +33,7 @@ class BaseModel:
 
     def __str__(self):
         self.name = f'model[{self.layers[0].shape[0]}'
-        self.name += ''.join(f'-{layer.shape[1]}' for layer in self.layers if isinstance(layer, DenseLayer))
+        self.name += ''.join(f'-{layer.shape[1]}' for layer in self.layers if isinstance(layer, Dense))
         self.name += ']'
         return self.name
     
@@ -219,6 +215,16 @@ class BaseModel:
 
 if __name__ == "__main__":
 
+    from data.mnist_data import MNISTDatasetManager
+    from data.encoders import OneHotEncoder, SmoothLabelEncoder
+    from optimizers.schedulers import Scheduler, WarmUpScheduler, StepDecayScheduler, plot_schedule
+    from layers.layer import Layer
+    from layers.dense import Dense
+    from layers.dropout import Dropout
+    from layers.batchnorm import BatchNorm
+    from layers.losses import Loss, LOSS_FN
+    from layers.activations import ACTIVATION_FN, Sigmoid, Tanh, SoftMax, ReLU
+
     # Set file paths based on added MNIST Datasets
     config = {
         'train_images_filepath': './data/MNIST/train-images',
@@ -273,10 +279,10 @@ if __name__ == "__main__":
     mlp.add(DenseLayer(64, output_layer, activation='softmax')) """
 
     # Option 2
-    mlp.add(DenseLayer(input_layer, 800, weight_init='he'))
+    mlp.add(Dense(input_layer, 800, weight_init='he'))
     mlp.add(ReLU())
     mlp.add(Dropout(0.3))
-    mlp.add(DenseLayer(800, output_layer, weight_init='xavier'))
+    mlp.add(Dense(800, output_layer, weight_init='xavier'))
     mlp.add(SoftMax())
 
     # Train

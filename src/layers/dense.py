@@ -4,7 +4,7 @@ from typing import Literal
 from layers.activations import ACTIVATION_FN
 from layers.layer import Layer
 
-class DenseLayer(Layer):
+class Dense(Layer):
     """Implements a dense fully-conected layer in a neural network, characterized by a linear 
         transformation followed by an optional activation function.
     """
@@ -29,7 +29,7 @@ class DenseLayer(Layer):
             - activation (None | str, optional): The activation function to be applied after the linear transformation. 
                 Pass `None` for no activation (default = None).
         """
-        super(DenseLayer, self).__init__(*shape)
+        super(Dense, self).__init__(*shape)
         # Initiliaze weights and bias
         self.weights = self.init_weight(weight_init)
         self.bias = np.zeros((1, self.shape[1]))
@@ -74,7 +74,7 @@ class DenseLayer(Layer):
         # Linear Transform
         self.output = np.dot(self.input, self.weights) + self.bias
         # Activation Layer
-        self.output = self.activation(self.output) if self.activation else self.output
+        self.output = self.activation(self.output) if self.activation is not None else self.output
         return self.output
 
     def backward(self, output_gradient: np.ndarray) -> np.ndarray:
@@ -89,7 +89,7 @@ class DenseLayer(Layer):
         #### Returns
             - `np.ndarray`: The gradient of the loss w.r.t. the layer's input.
         """
-        doutput = output_gradient * (self.activation(self.output, derivative=True) if self.activation else 1)
+        doutput = output_gradient * (self.activation(self.output, derivative=True) if self.activation is not None else 1)
 
         # Gradients for weights and bias
         self.dweights = np.dot(self.input.T, doutput)
