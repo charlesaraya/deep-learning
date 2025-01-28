@@ -8,10 +8,11 @@ from data.mnist_data import MNISTDatasetManager
 from optimizers.schedulers import Scheduler
 from layers.layer import Layer
 from layers.dense import Dense
-from layers.losses import Loss, LOSS_FN
+from losses.losses import Loss, LOSS_FN
 
-class BaseModel:
-
+class Model:
+    """Model base class.
+    """
     def __init__(self):
         self.layers: list[Layer] = []
         self.training_accuracies = []
@@ -173,7 +174,7 @@ class BaseModel:
             - `filepath` (`str`): Filepath to the model checkpoint.
         """
         with open(filepath,'rb') as f:
-            nn_model: BaseModel = pickle.load(f, encoding='bytes')
+            nn_model: Model = pickle.load(f, encoding='bytes')
         f.close()
 
         np.random.set_state(nn_model.random_state)
@@ -222,7 +223,7 @@ if __name__ == "__main__":
     from layers.dense import Dense
     from layers.dropout import Dropout
     from layers.batchnorm import BatchNorm
-    from layers.losses import Loss, LOSS_FN
+    from losses.losses import Loss, LOSS_FN
     from layers.activations import ACTIVATION_FN, Sigmoid, Tanh, SoftMax, ReLU
 
     # Set file paths based on added MNIST Datasets
@@ -272,7 +273,7 @@ if __name__ == "__main__":
     #plot_schedule(scheduler, epochs, steps_per_epoch) # Debug
 
     # Setup NN
-    mlp = BaseModel()
+    mlp = Model()
     
     """ # Option 1
     mlp.add(DenseLayer(input_layer, 64, activation='tanh'))
@@ -314,7 +315,7 @@ if __name__ == "__main__":
             \nTest Acc.:\t{test_accuracy:.3%}\n")
 
     # Load Checkpoint
-    mlp2 = BaseModel()
+    mlp2 = Model()
     checkpoint_path = os.path.join(config['checkpoint_filepath'], config['load_checkpoint'])
     mlp2.load_checkpoint(checkpoint_path)
     output = mlp2.train(mlp2.datamanager, mlp2.scheduler, mlp2.epochs, mlp2.current_epoch)

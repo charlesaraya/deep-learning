@@ -3,13 +3,13 @@ import json
 import os
 from math import ceil
 
-from model.basemodel import BaseModel
+from model.basemodel import Model
 from data.mnist_data import MNISTDatasetManager
 from optimizers.scheduler_factory import SchedulerFactory
 from layers.layer_factory import LayerFactory
 
 class ExperimentRunner:
-    def __init__(self, model: BaseModel, datamanager: MNISTDatasetManager, config: dict):
+    def __init__(self, model: Model, datamanager: MNISTDatasetManager, config: dict):
         self.config = config
 
         # Init Data Manager
@@ -52,7 +52,7 @@ class ExperimentRunner:
 
         # Init Model
         layer_factory = LayerFactory()
-        self.model: BaseModel = model()
+        self.model: Model = model()
         for layer in self.config['layers']:
             self.model.add(layer_factory.create(layer))
 
@@ -75,7 +75,7 @@ class ExperimentRunner:
         # Log Results
         self.log_results(results, test_accuracy)
 
-    def evaluate(self, model: BaseModel, test_data: np.ndarray):
+    def evaluate(self, model: Model, test_data: np.ndarray):
         """Evaluates the model on the test dataset."""
         # Inference
         test_probabilities = model.forward(test_data[0], is_training=False)
