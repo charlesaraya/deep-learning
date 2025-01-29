@@ -107,6 +107,8 @@ def get_cfg_defaults():
     _C.test.dataset = CfgNode()
     _C.test.dataset.data_length =  50000
     _C.test.dataset.num_augmentations =  1
+    _C.test.evaluation =  CfgNode()
+    _C.test.evaluation.rejection_criteria = None
 
     # Logging
     _C.log_filepath = "./results/logs/"
