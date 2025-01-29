@@ -8,7 +8,7 @@ class Layer:
         self.shape = (input_size, output_size)
 
         self.name = name if name is not None else self.__class__.__name__
-        self.name = str.lower(name)
+        self.name = str.lower(self.name)
         if uid is not None:
             self.name = f"{self.name}_{uid}"
 
