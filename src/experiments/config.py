@@ -50,6 +50,7 @@ def get_cfg_defaults():
     _C.model = CfgNode()
     _C.model.name = None
     _C.model.show_summary = False
+    _C.model.batch_eval = 32
 
     # Checkpoint configuration
     _C.checkpoint = CfgNode()

@@ -73,15 +73,19 @@ class ExperimentRunner:
             ]
         )
         # Evaluate
-        test_accuracy = self.evaluate(self.model, self.datamanager.test_data)
+        test_accuracy = self.evaluate(
+            self.model,
+            self.datamanager.test_data,
+            self.config['model']['batch_eval'],
+        )
 
         # Log Results
         self.log_results(results, test_accuracy)
 
-    def evaluate(self, model: Model, test_data: np.ndarray):
+    def evaluate(self, model: Model, test_data: np.ndarray, batch_size = None):
         """Evaluates the model on the test dataset."""
         # Inference
-        test_probabilities = model.forward(test_data[0], is_training=False)
+        test_probabilities = model.evaluate(test_data[0], batch_size=batch_size)
         test_predictions = np.argmax(test_probabilities, axis=1) + self.config['dataset']['label_offset']
         # Calculate Accuracy
         test_accuracy = np.mean(test_predictions == test_data[1])
