@@ -177,6 +177,19 @@ class Model:
             'validation_losses': self.validation_losses
         }
 
+    def evaluate(self, data: tuple[np.ndarray, np.ndarray], batch_size: int = None):
+        if batch_size is None:
+            batch_size = len(data)
+        data_length = len(data)
+        data_indices = np.arange(data_length)
+
+        eval_probabilities = []
+        for start_idx in range(0, len(data), batch_size):
+            end_idx = start_idx + batch_size
+            batch_indices = data_indices[start_idx:end_idx]
+            eval_probabilities.append(self.forward(data[batch_indices], is_training=False))
+        return np.vstack(eval_probabilities)
+
     def load_checkpoint(self, filepath: str):
         """Load serialized model with weights and biases.
 
