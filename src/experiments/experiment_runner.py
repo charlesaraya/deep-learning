@@ -70,26 +70,64 @@ class ExperimentRunner:
             checkpoint = [
                 self.config['checkpoint']['filepath'],
                 self.config['checkpoint']['epoch_freq']
-            ]
+            ],
         )
         # Evaluate
         test_accuracy = self.evaluate(
-            self.model,
-            self.datamanager.test_data,
-            self.config['model']['batch_eval'],
+            batch_size = self.config['model']['batch_eval'],
+            rejection_criteria = self.config['test']['evaluation']['rejection_criteria'],
         )
 
         # Log Results
         self.log_results(results, test_accuracy)
 
-    def evaluate(self, model: Model, test_data: np.ndarray, batch_size = None):
+    def evaluate(self, batch_size = None, rejection_criteria: list[float] = None):
         """Evaluates the model on the test dataset."""
         # Inference
-        test_probabilities = model.evaluate(test_data[0], batch_size=batch_size)
+        test_probabilities = self.model.evaluate(self.datamanager.test_data[0], batch_size=batch_size)
         test_predictions = np.argmax(test_probabilities, axis=1) + self.config['dataset']['label_offset']
+
+        # Calculate Rejection
+        if rejection_criteria:
+            self.reject(test_probabilities, test_predictions, rejection_criteria)
+
         # Calculate Accuracy
-        test_accuracy = np.mean(test_predictions == test_data[1])
+        test_accuracy = np.mean(test_predictions == self.datamanager.test_data[1])
         return test_accuracy
+
+    def reject(self, test_probabilities: np.ndarray, test_predictions: np.ndarray, rejection_criteria: list[float]) -> None:
+        self.rejection_metrics = True
+
+        test_size = len(test_probabilities)
+        test_mask = np.ones(test_size, dtype=bool) 
+
+        for idx, (sample, pred) in enumerate(zip(test_probabilities, test_predictions)):
+            # Criteria 1: 1st prediction is over theta1
+            if sample[pred] < rejection_criteria[0]:
+                test_mask[[idx]] = False
+
+            # Criteria 2: 2nd prediction is under theta2
+            mask = np.ones(sample.size, dtype=bool)
+            mask[[pred]] = False
+            pred_sec = np.argmax(sample[mask])
+            if sample[mask][pred_sec] > rejection_criteria[1]:
+                test_mask[[idx]] = False
+
+            # Criteria 3: Diff bw 1st prediction and 2nd prediction is < theta3
+            if sample[pred] - sample[mask][pred_sec] < rejection_criteria[1]:
+                test_mask[[idx]] = False
+
+        # Accepted Stats
+        accepted_predictions = np.argmax(test_probabilities[test_mask], axis=1)
+        self.accepted_accuracy = np.mean(accepted_predictions == self.datamanager.test_data[1][test_mask])
+
+        # Rejected Stats
+        inv_test_mask = np.logical_not(test_mask)
+        self.rejection_rate = len(test_probabilities[inv_test_mask]) / len(test_predictions)
+        rejected_predictions = np.argmax(test_probabilities[inv_test_mask], axis=1)
+        self.rejected_accuracy = np.mean(rejected_predictions == self.datamanager.test_data[1][inv_test_mask])
+
+        return None
 
     def _create_model_name(self):
         """Creates model name based on architecture
@@ -113,8 +151,14 @@ class ExperimentRunner:
                 \n{"─" * 15} Accuracies {"─" * 15} \
                 \nTraining Acc.:\t{train_results['training_accuracies'][-1]:.3%} \
                 \nValid Acc.:\t{train_results['validation_accuracies'][-1]:.3%} \
-                \nTest Acc.:\t{test_accuracy:.3%}\n")        
-        
+                \nTest Acc.:\t{test_accuracy:.3%}\n")
+
+        if self.rejection_metrics:
+            print(f"{"─" * 15} Rejection Strategy {"─" * 15} \
+                \nAccepted Acc.:\t{self.accepted_accuracy:.3%} \
+                \nRejected Acc.:\t{self.rejected_accuracy:.3%} \
+                \nRejection Rate:\t{self.rejection_rate:.3%}\n")
+
         experiment_filepath = os.path.join(
             self.config['log_filepath'], 
             model_name
