@@ -40,6 +40,7 @@ class CrossEntropyLoss(Loss):
 
         #### Args
             - `y_hat` (`np.ndarray`): The redicted probabilities from the forward pass.
+            - `y` (`np.ndarray`): The true target labels for each training sample.
 
         #### Returns
             - `np.ndarray`: The gradient w.r.t the loss.
