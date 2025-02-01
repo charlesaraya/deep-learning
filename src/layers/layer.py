@@ -12,6 +12,9 @@ class Layer:
         if uid is not None:
             self.name = f"{self.name}_{uid}"
 
+        self.trainable_params = None
+        self.gradients = None
+
     @abstractmethod
     def forward(self, input: np.ndarray, is_training: bool = True):
         """Performs a forward pass through the layer."""
@@ -23,5 +26,5 @@ class Layer:
         pass
 
     def update(self, learning_rate: float):
-        """Performs an update pass tghrough the layer."""
+        """Performs an update pass through the layer."""
         pass
