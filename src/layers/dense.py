@@ -31,9 +31,16 @@ class Dense(Layer):
                 Pass `None` for no activation (default = None).
         """
         super(Dense, self).__init__(*shape, **kwargs)
+
         # Initiliaze weights and bias
         self.weights = self.init_weight(weight_init)
         self.bias = np.zeros((1, self.shape[1]))
+        self.trainable_params = self.weights, self.bias
+
+        self.dweights = np.zeros_like(self.weights)
+        self.dbias = np.zeros_like(self.bias)
+        self.gradients = self.dweights, self.dbias
+
         # Set activation function
         self.activation = ACTIVATION_FN[activation] if activation else None
 
@@ -95,24 +102,28 @@ class Dense(Layer):
         # Gradients for weights and bias
         self.dweights = np.dot(self.input.T, doutput)
         self.dbias = np.sum(doutput, axis=0, keepdims=True)
+        self.gradients = self.dweights, self.dbias
 
         # Gradient to be passed to the previous layer
         dinput = np.dot(doutput, self.weights.T)
 
         return dinput
 
-    def update(self, learning_rate: float) -> None:
+    def update(self, learning_rate: float, gradients: list[np.ndarray]) -> None:
         """Updates the layer's parameters (weights and biases) using the computed gradients.
 
         This method applies gradient descent to adjust the weights and biases of the layer, 
         minimizing the loss function during training.
 
         #### Args
-            - `learning_rate` (`float`): The learning rate used to scale the gradient updates. 
+            - `learning_rate` (`float`): The learning rate used to scale the gradient updates.
+            - `gradients` (`list[np.ndarray]`): The list of computed gradients with which apply gradient descent.
 
         #### Returns
             - `None`: Updates the Layer's internal prameters and returns.
         """
-        self.weights -= learning_rate * self.dweights
-        self.bias -= learning_rate * self.dbias
+        dweights, dbias = gradients
+        self.weights -= learning_rate * dweights
+        self.bias -= learning_rate * dbias
+        self.trainable_params = self.weights, self.bias
         return None

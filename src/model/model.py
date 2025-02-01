@@ -6,6 +6,7 @@ import pickle
 
 from data.mnist_data import MNISTDatasetManager
 from optimizers.schedulers import Scheduler
+from optimizers.optimizer import Optimizer
 from layers.layer import Layer
 from layers.dense import Dense
 from losses.losses import Loss, LOSS_FN
@@ -20,6 +21,7 @@ class Model:
         self.validation_accuracies = []
         self.validation_losses = []
         self.name = name if name is not None else self.__class__.__name__
+        self.optimizer = None
 
     def add(self, layer: Layer):
         """Adds a layer to the model's architecture
@@ -32,6 +34,23 @@ class Model:
         - `layer` (`Layer`): The layer to be added to the model.
         """
         self.layers.append(layer)
+
+    def compile(self, optimizer: Optimizer = None) -> None:
+        """Configures the model for training.
+
+        This method assigns the specified optimizer to the model and initializes 
+        any necessary optimization-related parameters for trainable layers.
+
+        #### Args:
+            - optimizer (Optimizer): The optimization algorithm to be used to 
+                update the model's parameters.
+        """
+        if optimizer is not None:
+            self.optimizer = optimizer
+            for layer in self.layers:
+                if layer.trainable_params is not None:
+                    self.optimizer.init_params(layer.trainable_params)
+        return None
 
     def summary(self):
         print(f"Model: {self.name}")
@@ -68,11 +87,28 @@ class Model:
         Computing the gradients of the loss w.r.t. the model parameters, and updates the weights and biases.
 
         #### Args
-            - `y_hat` (`np.ndarray`): Predicted probabilities from the forward pass.
-            - `y` (`np.ndarray`): The true target labels for each training sample.
+            - `grad` (`np.ndarray`): The gradient w.r.t. to the loss
         """
         for layer in reversed(self.layers):
             grad = layer.backward(grad)
+
+    def update(self) -> None:
+        """Performs the update pass through the network.
+
+        This method iterates through the layers with trainable parameters and updates 
+        their parameters using the computed gradients. It applies any available optimization 
+        strategy to refine the gradients before updating the layer parameters.
+        """
+        idx = 0
+        for layer in self.layers:
+            if layer.trainable_params is not None:
+                if self.optimizer is not None:
+                    computed_gradients = self.optimizer.update(idx, layer.gradients)
+                else:
+                    computed_gradients = layer.gradients
+                idx += 1
+                layer.update(self.learning_rate, computed_gradients)
+        return None
 
     def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int, loss_fn: str, start_epoch: int = 0, checkpoint: list = None) -> dict:
         """Trains the MLP on the training data.
@@ -122,8 +158,7 @@ class Model:
                         self.backward(grad)
 
                         # Gradient Descent: Update Learning Parameters
-                        for layer in self.layers:
-                            layer.update(self.learning_rate)
+                        self.update()
 
                         # Monitor batch metrics
                         predictions = np.argmax(y_hat, axis=1)

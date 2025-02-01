@@ -7,6 +7,7 @@ from model.model import Model
 from data.mnist_data import MNISTDatasetManager
 from optimizers.scheduler_factory import SchedulerFactory
 from layers.layer_factory import LayerFactory
+from optimizers.optimizer_factory import OptimizerFactory
 
 class ExperimentRunner:
     def __init__(self, model: Model, datamanager: MNISTDatasetManager, config: dict):
@@ -58,6 +59,11 @@ class ExperimentRunner:
 
         if self.config['model']['name']:
             self.model.summary()
+
+        # Optimizer
+        optimizer_factory = OptimizerFactory()
+        optimizer = optimizer_factory.create(self.config['model']['optimizer'])
+        self.model.compile(optimizer)
 
     def run(self) -> None:
         """Runs an experiment for a given configuration."""
