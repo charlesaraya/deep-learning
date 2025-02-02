@@ -20,9 +20,7 @@ class Dense(Layer):
         The layer's weights can be initialized using different strategies to improve convergence and training performance.
 
         ### Args
-            - `shape` (`tuple`): A tuple defining the structure of the layer as (input_size, output_size), where:
-                - `input_size`: The number of features in the input data.
-                - `output_size`: The number of neurons in the layer.
+            - `shape` (`tuple`): A tuple defining the structure of the layer, specified as (input_size, output_size).
             - weight_init (str, optional): Specifies the weight initialization strategy:
                 - `'random'` (default): Initializes weights with small random values.
                 - `'xavier'`: Uses Xavier/Glorot initialization, suitable for tanh/sigmoid.
@@ -30,16 +28,13 @@ class Dense(Layer):
             - activation (None | str, optional): The activation function to be applied after the linear transformation. 
                 Pass `None` for no activation (default = None).
         """
-        super(Dense, self).__init__(*shape, **kwargs)
+        super(Dense, self).__init__(shape, **kwargs)
 
         # Initiliaze weights and bias
         self.weights = self.init_weight(weight_init)
         self.bias = np.zeros((1, self.shape[1]))
-        self.trainable_params = self.weights, self.bias
-
-        self.dweights = np.zeros_like(self.weights)
-        self.dbias = np.zeros_like(self.bias)
-        self.gradients = self.dweights, self.dbias
+        self.set_trainable_params(self.weights, self.bias)
+        self.dweights, self.dbias = self.init_gradients()
 
         # Set activation function
         self.activation = ACTIVATION_FN[activation] if activation else None

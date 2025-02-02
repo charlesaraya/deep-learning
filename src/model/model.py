@@ -52,14 +52,27 @@ class Model:
                     self.optimizer.init_params(layer.trainable_params)
         return None
 
+    def _add_padding(self, info: str, column_span: int = 20):
+        return " " * (column_span - len(str(info)))
+
     def summary(self):
+        total_model_params = 0
         print(f"Model: {self.name}")
-        print(f"{"─" * 50}")
-        print(f"Layer (type)")
-        print(f"{"=" * 50}")
+        print(f"{"─" * 80}")
+        print("Layer (type)" + self._add_padding("Layer (type)") +
+              "Input Shape" + self._add_padding("Input Shape") +
+              "# Parameters" + self._add_padding("# Parameters"))
+        print(f"{"=" * 80}")
         for layer in self.layers:
-            print(f"{layer.name} ({layer.__class__.__name__})")
-            print(f"{"─" * 50}")
+            shape = layer.shape if layer.shape is not None else "-"
+            print(layer.name + self._add_padding(layer.name) +
+                  f"{shape:}" + self._add_padding(shape) + 
+                  f"{layer.total_params:,}" + self._add_padding(layer.total_params))
+            print(f"{" " * 80}")
+            total_model_params += layer.total_params
+        print(f"{"=" * 80}")
+        print(f"Total Trainable Params: {total_model_params:,}")
+        print(f"{"─" * 80}")
 
     def __str__(self):
         self.name = f'model[{self.layers[0].shape[0]}'

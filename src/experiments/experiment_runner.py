@@ -57,7 +57,7 @@ class ExperimentRunner:
         for layer in self.config['layers']:
             self.model.add(layer_factory.create(layer))
 
-        if self.config['model']['name']:
+        if self.config['model']['show_summary']:
             self.model.summary()
 
         # Optimizer

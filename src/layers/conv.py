@@ -39,9 +39,7 @@ class Conv(Layer):
         batch_size, input_channels, input_height, input_width = shape
         self.featmap_size = (input_height + 2*self.padding - self.kernel_size) // self.stride + 1
 
-        input_size = batch_size * input_channels * input_height * input_width
-        output_size = self.kernel_num * self.featmap_size**2
-        super(Conv, self).__init__(input_size, output_size, **kwargs)
+        super(Conv, self).__init__(shape, **kwargs)
 
         # Initiliaze kernel weights
         self.kernels = self.init_kernels(
@@ -51,6 +49,8 @@ class Conv(Layer):
             weight_init
         )
         self.bias = np.zeros(kernel_num)
+        self.set_trainable_params(self.kernels, self.bias)
+        self.dkernels, self.dbias = self.init_gradients()
 
     def init_kernels(self, input_channels: int, kernel_num: int, kernel_size: int, weight_init: str):
         """Initiliase Kernel weights using a given strategy

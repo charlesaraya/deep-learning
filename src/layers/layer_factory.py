@@ -62,6 +62,8 @@ class LayerFactory:
 
         layer_params = layer_config.get('params', {}).copy()
         layer_params['uid'] = self.production[layer_name]
+        if 'name' not in layer_params:
+            layer_params['name'] = layer_name
 
         if layer_name not in self.layer_map:
             raise ValueError(f'Unknown layer type: {layer_name}')
