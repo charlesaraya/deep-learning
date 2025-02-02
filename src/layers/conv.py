@@ -162,7 +162,7 @@ class Conv(Layer):
 
         return dinput
 
-    def update(self, learning_rate: float) -> None:
+    def update(self, learning_rate: float, gradients: list[np.ndarray]) -> None:
         """Performs the update pass through the layer.
 
         This method applies gradient descent to adjust the kernel weights and biases of the layer, 
@@ -174,8 +174,10 @@ class Conv(Layer):
         #### Returns
             - `None`: Updates the Layer's internal prameters and returns.
         """
-        self.kernels -= learning_rate * self.dkernels
-        self.bias -= learning_rate * self.dbias
+        dkernels, dbias = gradients
+        self.kernels -= learning_rate * dkernels
+        self.bias -= learning_rate * dbias
+        self.trainable_params = self.kernels, self.bias
         return None
 
 if __name__ == "__main__":

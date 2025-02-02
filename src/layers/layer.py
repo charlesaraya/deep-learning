@@ -12,17 +12,19 @@ class Layer:
         if uid is not None:
             self.name = f"{self.name}_{uid}"
 
-        self.trainable_params = []
+        self.trainable_params = None
         self.total_params = 0
-        self.gradients = []
+        self.gradients = None
 
     def set_trainable_params(self, *params) -> None:
+        self.trainable_params = []
         for param in params:
             self.trainable_params.append(param)
             self.total_params += param.size
         return None
 
     def init_gradients(self) -> list[np.ndarray]:
+        self.gradients = []
         for param in self.trainable_params:
             gradient = np.zeros_like(param)
             self.gradients.append(gradient)
