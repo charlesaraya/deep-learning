@@ -12,15 +12,17 @@ class BatchNorm(Layer):
 
     It also introduces learnable parameters for scaling (gamma) and shifting (beta) the normalized output.
     """
-    def __init__(self, momentum: float = 0.95, **kwargs):
+    def __init__(self, shape: tuple, momentum: float = 0.95, **kwargs):
         """Initializes the BatchNorm layer.
 
         #### Args
             - `momentum` (`float`, optional): Momentum for the running mean and variance updates (default is 0.95). 
             Larger values make the running statistics adapt more slowly to new data, while smaller values allow faster adaptation.
         """
+        super(BatchNorm, self).__init__(shape, **kwargs)
+
         self.momentum = momentum
-        super(BatchNorm, self).__init__(**kwargs)
+        self.total_params = 2 * shape[0]
 
         self.axis_op = None
         self.is_initiliazed = False
@@ -39,6 +41,8 @@ class BatchNorm(Layer):
         # Init parameters
         self.gamma = np.ones(self.shape)
         self.beta = np.zeros(self.shape)
+        self.set_trainable_params(self.gamma, self.beta)
+        self.dgamma, self.dbeta = self.init_gradients()
 
         self.running_mean = np.zeros(self.shape)
         self.running_var = np.ones(self.shape)

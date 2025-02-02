@@ -4,16 +4,29 @@ from abc import ABC, abstractmethod
 class Layer:
     """Layer base class.
     """
-    def __init__(self, input_size: int = 0, output_size: int = 0, name: str = None, uid: int = None):
-        self.shape = (input_size, output_size)
+    def __init__(self, shape: tuple[int] = None, name: str = None, uid: int = None):
+        self.shape = shape
 
         self.name = name if name is not None else self.__class__.__name__
         self.name = str.lower(self.name)
         if uid is not None:
             self.name = f"{self.name}_{uid}"
 
-        self.trainable_params = None
-        self.gradients = None
+        self.trainable_params = []
+        self.total_params = 0
+        self.gradients = []
+
+    def set_trainable_params(self, *params) -> None:
+        for param in params:
+            self.trainable_params.append(param)
+            self.total_params += param.size
+        return None
+
+    def init_gradients(self) -> list[np.ndarray]:
+        for param in self.trainable_params:
+            gradient = np.zeros_like(param)
+            self.gradients.append(gradient)
+        return self.gradients
 
     @abstractmethod
     def forward(self, input: np.ndarray, is_training: bool = True):
