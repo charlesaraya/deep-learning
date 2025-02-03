@@ -8,7 +8,7 @@ class SGD(Optimizer):
     This optimizer updates model parameters using the gradient of the loss function 
     while incorporating momentum to accelerate learning and dampen oscillations.
     """
-    def __init__(self, momentum: float, **kwargs):
+    def __init__(self, momentum: float = 0.0, **kwargs):
         """Initializes the SGD with Momentum optimizer.
 
         #### Args
