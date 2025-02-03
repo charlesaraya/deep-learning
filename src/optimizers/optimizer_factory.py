@@ -23,7 +23,7 @@ class OptimizerFactory:
         """
         self.map = OPTIMIZERS
 
-    def create(self, config):
+    def create(self, name: str, params: dict = {}):
         """Creates a optimizer based on the provided configuration.
 
         This method parses the configuration dictionary to extract the optimizer type and its parameters. 
@@ -37,9 +37,8 @@ class OptimizerFactory:
         #### Returns
             - `object`: The instance of the specified optimizer class initialized with the provided parameters.
         """
-        name = config['name']
-        params = config.get('params', {}).copy()
-        params['name'] = name
+        self.params = params
+        self.params['name'] = name
 
         if name not in self.map:
             raise ValueError(f'Unknown optimizer: {name}')

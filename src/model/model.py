@@ -7,6 +7,7 @@ import pickle
 from data.mnist_data import MNISTDatasetManager
 from optimizers.schedulers import Scheduler
 from optimizers.optimizer import Optimizer
+from optimizers.optimizer_factory import OptimizerFactory
 from layers.layer import Layer
 from layers.dense import Dense
 from losses.losses import Loss, LOSS_FN
@@ -21,6 +22,10 @@ class Model:
         self.validation_accuracies = []
         self.validation_losses = []
         self.name = name if name is not None else self.__class__.__name__
+
+        # Compile attributes
+        self.is_compiled = False
+        self.loss_fn = None
         self.optimizer = None
 
     def add(self, layer: Layer):
@@ -35,21 +40,36 @@ class Model:
         """
         self.layers.append(layer)
 
-    def compile(self, optimizer: Optimizer = None) -> None:
+    def compile(
+        self,
+        optimizer: str | Optimizer = 'sgd',
+        loss: str | Loss = 'cross-entropy-loss'
+    ) -> None:
         """Configures the model for training.
 
         This method assigns the specified optimizer to the model and initializes 
         any necessary optimization-related parameters for trainable layers.
 
         #### Args:
-            - optimizer (Optimizer): The optimization algorithm to be used to 
-                update the model's parameters.
+            - optimizer (Optimizer): The optimization algorithm to be used to update the model's parameters (default = 'sgd').
+            - `loss_fn` (`str` | `Loss`): The loss function to be used to calculate the predictive error of the model (default = 'cross-entropy-loss').
         """
-        if optimizer is not None:
+        # Optimizer
+        if isinstance(optimizer, Optimizer):
             self.optimizer = optimizer
-            for layer in self.layers:
-                if layer.trainable_params is not None:
-                    self.optimizer.init_params(layer.trainable_params)
+        else:
+            optimizer_factory = OptimizerFactory()
+            self.optimizer = optimizer_factory.create(optimizer)
+        for layer in self.layers:
+            if layer.trainable_params is not None:
+                self.optimizer.init_params(layer.trainable_params)
+        # Loss
+        if isinstance(loss, Loss):
+            self.loss_fn = loss
+        else:
+            self.loss_fn: Loss = LOSS_FN[loss]()
+
+        self.is_compiled = True
         return None
 
     def _add_padding(self, info: str, column_span: int = 20):
@@ -123,15 +143,15 @@ class Model:
                 layer.update(self.learning_rate, computed_gradients)
         return None
 
-    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int, loss_fn: str, start_epoch: int = 0, checkpoint: list = None) -> dict:
+    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int, start_epoch: int = 0, checkpoint: list = None) -> dict:
         """Trains the MLP on the training data.
 
         Performs forward and backward passes at a given learning rate, and over a number of epochs.
 
         #### Args
             - `datamanager` (`MNISTDatasetManager`): A DataManager class containing the training and validation data, as well as an iterator for mini-batch.
+            - `scheduler` (`Scheduler`): The scheduler that will implement the learning rate update strategy during training.
             - `epochs` (int): The number of times the model will iterate over the entire training dataset.
-            - `loss_fn` (`str`): The loss function to be used to calculate the predictive error of the model.
             - `start_epoch` (`int`): 
             - `checkpoint` (`list`): Checkpoint settings (default = `None`).
 
@@ -145,7 +165,9 @@ class Model:
         self.epochs = epochs - start_epoch
         self.datamanager = datamanager
         self.scheduler = scheduler
-        self.loss_fn: Loss = LOSS_FN[loss_fn]()
+
+        if not self.is_compiled:
+            self.compile() # compile with default settings
 
         with trange(self.epochs) as t:
             for epoch in t:

@@ -62,8 +62,14 @@ class ExperimentRunner:
 
         # Optimizer
         optimizer_factory = OptimizerFactory()
-        optimizer = optimizer_factory.create(self.config['model']['optimizer'])
-        self.model.compile(optimizer)
+        optimizer = optimizer_factory.create(
+            self.config['model']['optimizer']['name'],
+            self.config['model']['optimizer']['params']
+        )
+        self.model.compile(
+            optimizer = optimizer,
+            loss = self.config['loss_fn'],
+        )
 
     def run(self) -> None:
         """Runs an experiment for a given configuration."""
@@ -72,7 +78,6 @@ class ExperimentRunner:
             self.datamanager,
             self.scheduler,
             self.config['epochs'],
-            self.config['loss_fn'],
             checkpoint = [
                 self.config['checkpoint']['filepath'],
                 self.config['checkpoint']['epoch_freq']
