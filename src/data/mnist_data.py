@@ -23,9 +23,9 @@ class MNISTDatasetManager:
     def __init__(
             self,
             batch_size: int,
-            encoder: str,
             nlabels: int,
-            label_offset: int,
+            encoder: str = 'onehot',
+            label_offset: int = 0,
         ):
         """MNIST Dataset Manager.
 

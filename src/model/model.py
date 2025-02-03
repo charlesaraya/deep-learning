@@ -303,6 +303,8 @@ if __name__ == "__main__":
         'train_labels_filepath': './data/MNIST/train-labels',
         'test_images_filepath': './data/MNIST/test-images',
         'test_labels_filepath': './data/MNIST/test-labels',
+        'nlabels': 10,
+        'batch_size': 64,
         'metrics_filepath': './plots/metrics/',
         'checkpoint_filepath': './results/checkpoints/',
         'checkpoint_epoch_freq': 2,
@@ -310,51 +312,44 @@ if __name__ == "__main__":
     }
 
     # Load MINST dataset
-    batch_size = 64
-    mnist = MNISTDatasetManager(batch_size, SmoothLabelEncoder())
+    batch_size = config['batch_size']
+    mnist = MNISTDatasetManager(
+        batch_size = batch_size,
+        nlabels = config['nlabels'],
+    )
 
     mnist.load_data(
         config['train_images_filepath'],
         config['train_labels_filepath'],
-        'train'
-        )
+        type = 'train',
+    )
     mnist.load_data(
         config['test_images_filepath'],
         config['test_labels_filepath'],
-        'test'
-        )
+        type = 'test'
+    )
 
-    train_data = mnist.prepdata('train', shuffle=True, validation_len=10000)
-    test_data = mnist.prepdata('test')
-
-    # Architecture
-    input_layer = train_data[0].shape[1]
-    hidden_layer = [512]
-    output_layer = train_data[1].shape[1]
+    train_data = mnist.prepdata()
 
     epochs = 4
     learning_rate = 9e-2
     learning_rate_start = 1e-3
 
     # Scheduler
-    steps_per_epoch = ceil(train_data[0].shape[0] / batch_size)
+    steps_per_epoch = ceil(mnist.train_data[0].shape[0] / batch_size)
     steps_total = steps_per_epoch * epochs
     basemodel = StepDecayScheduler(learning_rate, step_size=ceil(steps_per_epoch*.15), decay_factor=0.90)
     scheduler = WarmUpScheduler(basemodel, learning_rate_start, learning_rate, steps_total*0.1)
     #plot_schedule(scheduler, epochs, steps_per_epoch) # Debug
 
     # Setup NN
-    mlp = Model()
-    
-    """ # Option 1
-    mlp.add(DenseLayer(input_layer, 64, activation='tanh'))
-    mlp.add(DenseLayer(64, output_layer, activation='softmax')) """
+    mlp = Model(name="my_mlp")
 
-    # Option 2
-    mlp.add(Dense(input_layer, 800, weight_init='he'))
+    # Build model by adding lñayers sequentially
+    mlp.add(Dense((784, 800), weight_init='he'))
     mlp.add(ReLU())
     mlp.add(Dropout(0.3))
-    mlp.add(Dense(800, output_layer, weight_init='xavier'))
+    mlp.add(Dense((800, 10), weight_init='xavier'))
     mlp.add(SoftMax())
 
     # Train
@@ -369,11 +364,11 @@ if __name__ == "__main__":
     )
 
     # Inference
-    test_probabilities = mlp.forward(test_data[0], is_training=False)
+    test_probabilities = mlp.forward(mnist.test_data[0], is_training=False)
     test_predictions = np.argmax(test_probabilities, axis=1)
 
     # Accuracy
-    test_accuracy = np.mean(test_predictions == test_data[1])
+    test_accuracy = np.mean(test_predictions == mnist.test_data[1])
 
     # Results
     print(f"\n{mlp.__str__()}, Epochs: {epochs}, Batch size: {batch_size}, Learning rate: {learning_rate} \

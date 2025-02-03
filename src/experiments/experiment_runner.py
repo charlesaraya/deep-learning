@@ -16,8 +16,8 @@ class ExperimentRunner:
         # Init Data Manager
         self.datamanager: MNISTDatasetManager = datamanager(
             self.config['dataset']['batch_size'],
-            self.config['dataset']['encoder'],
             self.config['dataset']['nlabels'],
+            self.config['dataset']['encoder'],
             self.config['dataset']['label_offset'],
         )
         # Load Datasets
