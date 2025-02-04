@@ -8,7 +8,7 @@ The goal is to deepen my understanding of how deep learning works under the hood
   - Weight initialization: random, glorot, and he.
   - One-hot encoder.
   - Forward and backpropagation.
-  - Online abd Mini-batch learning.
+  - Online and Mini-batch learning.
   - Sigmoid, Tanh, ReLU, and Softmax activations.
   - Cross-entropy and MSE loss functions.
   - Metric monitoring: training and validation loss and accuracy metrics.
