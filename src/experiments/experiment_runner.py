@@ -99,6 +99,7 @@ class ExperimentRunner:
         test_predictions = np.argmax(test_probabilities, axis=1) + self.config['dataset']['label_offset']
 
         # Calculate Rejection
+        self.rejection_metrics = False
         if rejection_criteria:
             self.reject(test_probabilities, test_predictions, rejection_criteria)
 
