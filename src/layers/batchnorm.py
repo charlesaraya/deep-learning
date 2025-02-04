@@ -24,6 +24,12 @@ class BatchNorm(Layer):
         self.momentum = momentum
         self.total_params = 2 * shape[0]
 
+        # Init parameters
+        self.gamma = np.ones(self.shape)
+        self.beta = np.zeros(self.shape)
+        self.set_trainable_params(self.gamma, self.beta)
+        self.dgamma, self.dbeta = self.init_gradients()
+
         self.axis_op = None
         self.is_initiliazed = False
 
@@ -116,6 +122,7 @@ class BatchNorm(Layer):
         # Gradients w.r.t. gamma and beta
         self.dgamma = np.sum(self.Z * dout, axis=self.axis_op, keepdims=True)
         self.dbeta = np.sum(dout, axis=self.axis_op, keepdims=True)
+        self.gradients = self.dgamma, self.dbeta
 
         # break normalization formula into intermediate vars
         z_mu = self.X - self.mean
@@ -135,7 +142,7 @@ class BatchNorm(Layer):
         dloss = dloss1 + dloss2 + dloss3 # final partial derivatives, 
         return dloss
 
-    def update(self, learning_rate: float) -> None:
+    def update(self, learning_rate: float, gradients: list[np.ndarray]) -> None:
         """Updates the layer's learning parameters (gamma and beta) using the computed gradients.
 
         This method applies gradient descent to adjust the learning parameters of the layer, 
@@ -147,6 +154,7 @@ class BatchNorm(Layer):
         #### Returns
             - `None`: Updates the Layer's internal prameters and returns.
         """
-        self.gamma -= learning_rate * self.dgamma
-        self.beta -= learning_rate * self.dbeta
+        dgamma, dbeta = gradients
+        self.gamma -= learning_rate * dgamma
+        self.beta -= learning_rate * dbeta
         return None
