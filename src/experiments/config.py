@@ -38,11 +38,11 @@ def get_cfg_defaults():
 
     _C.dataset.augmentation = CfgNode()
     # Assign None to skip tranformation
-    _C.dataset.augmentation.rotation = [-30, 30] # range [min, max] in degrees
-    _C.dataset.augmentation.translation = [4, 4] # range [min, max] in pixels
-    _C.dataset.augmentation.scale = [0.8, 1.2] # range [min, max] as a factor. Scale down: factor < 1
-    _C.dataset.augmentation.shear = [-0.4, 0.4, 1, 0] # [min, max, hskew flag, vskew flag]
-    _C.dataset.augmentation.noise = 0.3 # noise level
+    _C.dataset.augmentation.rotation = None # range [min, max] in degrees (eg [-30, 30])
+    _C.dataset.augmentation.translation = None # range [min, max] in pixels (eg [4, 4])
+    _C.dataset.augmentation.scale = None # range [min, max] as a factor. Scale down: factor < 1 (eg [0.8, 1.2])
+    _C.dataset.augmentation.shear = None # [min, max, hskew flag, vskew flag] (eg [-0.4, 0.4, 1, 0])
+    _C.dataset.augmentation.noise = None # noise level (eg 0.3)
 
     _C.epochs = 2
     _C.loss_fn = 'cross-entropy-loss'
@@ -101,10 +101,10 @@ def get_cfg_defaults():
     _C.scheduler.params.base_scheduler.params = CfgNode()
     _C.scheduler.params.base_scheduler.params.lr_start = 9e-2
     _C.scheduler.params.base_scheduler.params.decay_factor = 0.9
-    _C.scheduler.params.base_scheduler.params.step_size = 200
+    _C.scheduler.params.base_scheduler.params.step_size = 782
     _C.scheduler.params.lr_start = 1e-3
     _C.scheduler.params.lr_max = 9e-2
-    _C.scheduler.params.warmup_steps = 784
+    _C.scheduler.params.warmup_steps = 782
     _C.scheduler.plot_filepath = './plots/schedulers'
 
     # Test Cases
