@@ -15,9 +15,9 @@ The goal is to deepen my understanding of how deep learning works under the hood
   - MNIST datamanager: loads raw data set, implements an iterator for mini-batch learning, preps data, and has data visualization support.
   - Dropout regarization.
   - Batch Normazation.
-  - Smooth laling.
-  - Learninschedulers, with step decay, exponential decay, cosine annealing decay schedulers.
-  - Data gmentation:otation, translation, scaling, shearing, and noising.
+  - Label Smoothing.
+  - Learning schedulers, with step decay, exponential decay, cosine annealing decay schedulers.
+  - Data augmentation: rotation, translation, scaling, shearing, and noising.
 - **Model and Data manager enhancements**:
   - Modular base model with sequential layers.
   - Experiment runner: creates and streams experiments set-up via configuration.
@@ -28,7 +28,7 @@ The goal is to deepen my understanding of how deep learning works under the hood
 - **Convolutional Neural Networks**.
   - Convolution layer.
   - Pooling layer, with max and average pooling support.
-  - Flatten layer.
+  - Flattening layer.
   - EMNIST support.
 - **Model enhancements**:
   - Rejection-based classification support.
