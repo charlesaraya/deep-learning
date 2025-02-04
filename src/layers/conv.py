@@ -2,6 +2,7 @@ import numpy as np
 from typing import Literal
 
 from layers.layer import Layer
+from layers.activations import ACTIVATIONS
 
 class Conv(Layer):
     """Implements a convolutional layer for Convolutional Neural Networks (CNNs).
@@ -16,6 +17,7 @@ class Conv(Layer):
         weight_init: str = Literal['random', 'xavier', 'he'],
         stride: int = 1,
         padding: int = 0,
+        activation = None,
         **kwargs
     ):
         """Initialize the ConvLayer layer.
@@ -30,16 +32,17 @@ class Conv(Layer):
             - `stride` (`int`): The step size by which the kernel moves across the input feature map.
             - `padding` (`int`): The amount of zero-padding added to the input feature map's borders.
         """
+        super(Conv, self).__init__(shape, **kwargs)
+
         self.kernel_num = kernel_num
         self.kernel_size = kernel_size
         self.stride = stride
         self.padding = padding
+        self.activation: Layer = ACTIVATIONS[activation]
 
         # Extract indexes
         batch_size, input_channels, input_height, input_width = shape
         self.featmap_size = (input_height + 2*self.padding - self.kernel_size) // self.stride + 1
-
-        super(Conv, self).__init__(shape, **kwargs)
 
         # Initiliaze kernel weights
         self.kernels = self.init_kernels(
@@ -114,7 +117,10 @@ class Conv(Layer):
                         # Extract input data region on which compute convolution operation
                         region = self.input_data[n, :, h_start:h_end, w_start:w_end]
                         self.featmap[n, k, i, j] = np.sum(region * kernel) + self.bias[k]
-        return self.featmap
+
+        output = self.activation.forward(self.featmap) if self.activation is not None else self.featmap
+
+        return output
 
     def backward(self, output_gradient: np.ndarray):
         """Performs the backward pass through the layer.
@@ -127,6 +133,9 @@ class Conv(Layer):
         #### Returns
             - `np.ndarray`: The gradient of the loss w.r.t. the layer's input.
         """
+        if self.activation is not None:
+            output_gradient = self.activation.backward(output_gradient)
+
         # Init gradients
         dinput = np.zeros_like(self.input_data)
         self.dkernels = np.zeros_like(self.kernels)
@@ -150,7 +159,7 @@ class Conv(Layer):
                         # Gradient w.r.t. the kernel weights
                         self.dkernels[k] += region * output_gradient[n, k, i, j]
 
-                        # Gradient w.r.t. the input
+                        # Gradient w.r.t. the input, to be passed to the previous layer
                         dinput[n, :, h_start:h_end, w_start:w_end] += self._flip_kernel(kernel) * output_gradient[n, k, i, j]
 
         # Gradient w.r.t. biases

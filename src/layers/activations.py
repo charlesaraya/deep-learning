@@ -2,23 +2,6 @@ import numpy as np
 
 from layers.layer import Layer
 
-def sigmoid_activation(Z: np.ndarray, derivative: bool = False) -> np.ndarray:
-    """Applies Sigmoid activation function to the input.
-
-    The Sigmoid activation function maps input values to the range (0, 1), useful for 
-    modeling probabilities. 
-
-    #### Args
-        - `Z` (`np.ndarray`): Input array, typically a pre-activation value (logits) from a layer.
-        - `derivative` (`bool`, optional): Computes the derivative of the Sigmoid function instead of the activation itself.
-
-    #### Returns
-        - `np.ndarray`: Output array with the activation value or derivative for the layer.
-    """
-    if derivative:
-        return Z * (1. - Z)
-    return 1. / (1. + np.exp(-Z))
-
 class Sigmoid(Layer):
     """Applies Tanh activation function to the input.
 
@@ -56,12 +39,6 @@ class Sigmoid(Layer):
         """
         return dloss * (self.h * (1. - self.h))
 
-def tanh_activation(Z: np.ndarray, derivative: bool = False) -> np.ndarray:
-    tanh = np.divide(np.exp(Z) - np.exp(-Z), np.exp(Z) + np.exp(-Z)) # shortcut: np.tanh(Z)
-    if derivative:
-        return 1. - tanh**2
-    return tanh
-
 class Tanh(Layer):
     """Implements a Tanh (Hyperbolic Tangent) activation layer in a neural network.
 
@@ -97,22 +74,6 @@ class Tanh(Layer):
             - `np.ndarray`: The gradient of the loss w.r.t. the layer's input.
         """
         return dloss * (1. - np.tanh(self.h)**2)
-
-def relu_activation(Z: np.ndarray, derivative: bool = False) -> np.ndarray:
-    """Applies ReLU activation function to the input.
-
-    A ReLU (Rectified Linear Unit) activation function is linear in the positive dimension, but zero in the negative dimension. 
-
-    #### Args
-        - `Z` (`np.ndarray`): The input array, typically a pre-activation value (logits) from a layer.
-        - `derivative` (`bool`, optional): Computes the derivative of the activation function instead of the activation itself.
-
-    #### Returns
-        `np.ndarray`: The output array with the activation value or derivative for the layer.
-    """
-    if derivative:
-        return np.where(Z < 0, 0, 1.)
-    return np.maximum(0, Z)
 
 class ReLU(Layer):
     """Implements a (Leaky) ReLU (Rectified Linear Unit) activation layer in a neural network.
@@ -163,24 +124,6 @@ class ReLU(Layer):
         """
         return dloss * np.where(self.h <= 0, self.alpha, 1.)
 
-def softmax_activation(Z: np.ndarray, derivative: bool = False) -> np.ndarray:
-    """Applies Softmax activation function to the input.
-    
-    The softmax function converts logits (raw scores) into a probability distribution, 
-    ensuring that the output values are in the range [0, 1] and sum to 1 across each sample.
-
-    #### Args
-        `Z` (`np.ndarray`): The input array (logits). Each row corresponds to the raw scores for a single sample across all classes.
-
-    #### Returns
-        `np.ndarray`: The output array with softmax probabilities. Each row represents a valid probability distribution.
-    """
-    if derivative:
-        return 1
-    exp_x = np.exp(Z - np.max(Z, axis=1, keepdims=True))
-    y_hat = exp_x / np.sum(exp_x, axis=1, keepdims=True) # predicted probability for each class
-    return y_hat
-
 class SoftMax(Layer):
     """Implements a Softmax activation layer in a neural network.
     
@@ -206,10 +149,10 @@ class SoftMax(Layer):
     def backward(self, dloss: np.ndarray) -> np.ndarray:
         return dloss # for now, calculation done outside as it's tied with cross-entropy loss
 
-ACTIVATION_FN = {
-    'sigmoid': sigmoid_activation,
-    'relu': relu_activation,
-    'tanh': tanh_activation,
-    'softmax': softmax_activation,
+ACTIVATIONS = {
+    'sigmoid': Sigmoid(),
+    'relu': ReLU(),
+    'tanh': Tanh(),
+    'softmax': SoftMax(),
     None: None
 }

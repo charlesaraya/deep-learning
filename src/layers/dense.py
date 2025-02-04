@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Literal
 
-from layers.activations import ACTIVATION_FN
+from layers.activations import ACTIVATIONS
 from layers.layer import Layer
 
 class Dense(Layer):
@@ -12,7 +12,7 @@ class Dense(Layer):
         self,
         shape: tuple,
         weight_init: str = Literal['random', 'xavier', 'he'],
-        activation: None | str = None,
+        activation = None,
         **kwargs
     ):
         """Initializes the Dense (fully connected) layer.
@@ -25,8 +25,7 @@ class Dense(Layer):
                 - `'random'` (default): Initializes weights with small random values.
                 - `'xavier'`: Uses Xavier/Glorot initialization, suitable for tanh/sigmoid.
                 - `'he'`: Uses He initialization, ideal for ReLU/Leaky ReLU activations
-            - activation (None | str, optional): The activation function to be applied after the linear transformation. 
-                Pass `None` for no activation (default = None).
+            - activation: The activation function to be applied after the linear transformation (default = None).
         """
         super(Dense, self).__init__(shape, **kwargs)
 
@@ -37,7 +36,7 @@ class Dense(Layer):
         self.dweights, self.dbias = self.init_gradients()
 
         # Set activation function
-        self.activation = ACTIVATION_FN[activation] if activation else None
+        self.activation: Layer = ACTIVATIONS[activation]
 
     def init_weight(self, weight_init):
         """Initializes the weights of a layer using the specified initialization strategy.
@@ -75,10 +74,12 @@ class Dense(Layer):
         """
         self.input = input_data
         # Linear Transform
-        self.output = np.dot(self.input, self.weights) + self.bias
-        # Activation Layer
-        self.output = self.activation(self.output) if self.activation is not None else self.output
-        return self.output
+        output = np.dot(self.input, self.weights) + self.bias
+
+        if self.activation is not None:
+            output = self.activation.forward(output)
+
+        return output
 
     def backward(self, output_gradient: np.ndarray) -> np.ndarray:
         """Performs the backward pass through the layer.
@@ -92,15 +93,16 @@ class Dense(Layer):
         #### Returns
             - `np.ndarray`: The gradient of the loss w.r.t. the layer's input.
         """
-        doutput = output_gradient * (self.activation(self.output, derivative=True) if self.activation is not None else 1)
+        if self.activation is not None:
+            output_gradient = self.activation.backward(output_gradient)
 
         # Gradients for weights and bias
-        self.dweights = np.dot(self.input.T, doutput)
-        self.dbias = np.sum(doutput, axis=0, keepdims=True)
+        self.dweights = np.dot(self.input.T, output_gradient)
+        self.dbias = np.sum(output_gradient, axis=0, keepdims=True)
         self.gradients = self.dweights, self.dbias
 
-        # Gradient to be passed to the previous layer
-        dinput = np.dot(doutput, self.weights.T)
+        # Gradient w.r.t. the input, to be passed to the previous layer
+        dinput = np.dot(output_gradient, self.weights.T)
 
         return dinput
 
