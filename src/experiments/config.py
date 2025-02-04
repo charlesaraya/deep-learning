@@ -52,12 +52,13 @@ def get_cfg_defaults():
     _C.model = CfgNode()
     _C.model.name = None
     _C.model.show_summary = False
+    _C.model.verbose = False
     _C.model.batch_eval = 32
     _C.model.optimizer = 'sgd'
     _C.model.optimizer = CfgNode()
     _C.model.optimizer.name = 'sgd'
     _C.model.optimizer.params = CfgNode()
-    _C.model.optimizer.params.momentum = 0.8
+    _C.model.optimizer.params.momentum = 0.0
 
     # Checkpoint configuration
     _C.checkpoint = CfgNode()
