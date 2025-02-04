@@ -17,6 +17,8 @@ def get_cfg_defaults():
     """Returns a YACS CfgNode with the default configuration."""
     _C = CfgNode()
 
+    _C.run_experiment = True
+
     # Dataset
     _C.dataset = CfgNode()
     _C.dataset.batch_size = 64
@@ -44,7 +46,7 @@ def get_cfg_defaults():
     _C.dataset.augmentation.shear = None # [min, max, hskew flag, vskew flag] (eg [-0.4, 0.4, 1, 0])
     _C.dataset.augmentation.noise = None # noise level (eg 0.3)
 
-    _C.epochs = 2
+    _C.epochs = 10
     _C.loss_fn = 'cross-entropy-loss'
 
     _C.model = CfgNode()

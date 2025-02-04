@@ -17,10 +17,10 @@ def main():
         file_path = os.path.join(config.config_dir, file_name)
         experiment_config = load_config(file_path)
         config.merge_from_other_cfg(experiment_config)
-
-        # Prep and run experiment
-        experiment = ExperimentRunner(Model, MNISTDatasetManager, config)
-        experiment.run()
+        if config['run_experiment']:
+            # Prep and run experiment
+            experiment = ExperimentRunner(Model, MNISTDatasetManager, config)
+            experiment.run()
 
 if __name__ == "__main__":
     main()
