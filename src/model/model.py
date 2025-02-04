@@ -166,49 +166,46 @@ class Model:
         self.datamanager = datamanager
         self.scheduler = scheduler
 
+        val_loss = 0
+        val_accuracy = 0
+
         if not self.is_compiled:
             self.compile() # compile with default settings
 
         with trange(self.epochs) as t:
             for epoch in t:
-                t.set_description(f"Epoch {start_epoch + epoch+1}") # Monitor epoch progress in terminal
                 batch_accuracies, batch_losses = [], []
                 self.current_epoch = start_epoch + epoch + 1 # used to track checkpoint's epoch. Offset required to skip 0 index.
 
-                i =   0
                 total_batches = ceil(datamanager.train_data[0].shape[0] / datamanager.batch_size)
-                with tqdm(total=total_batches) as b:
-                    for X_batch, y_batch in tqdm(datamanager):
-                        b.set_description(f"Batch {i+1}") # Monitor batch progress in terminal
-                        self.learning_rate = scheduler.get_lr()
 
-                        # Forward Pass
-                        y_hat = self.forward(X_batch)
+                for batch_idx, (X_batch, y_batch) in enumerate(datamanager):
+                    t.set_description(f"Epoch {start_epoch + epoch+1} ({batch_idx+1}/{total_batches})") # Monitor epoch and batch progress in terminal
 
-                        # Calculate error in prediction
-                        loss = self.loss_fn.forward(y_hat, y_batch)
-                        # Calculate gradient w.r.t loss
-                        grad = self.loss_fn.backward(y_hat, y_batch)
-                        # Backpropagation Pass: Calculate Gradients, Weights & Bias
-                        self.backward(grad)
+                    self.learning_rate = scheduler.get_lr()
 
-                        # Gradient Descent: Update Learning Parameters
-                        self.update()
+                    # Forward Pass
+                    y_hat = self.forward(X_batch)
 
-                        # Monitor batch metrics
-                        predictions = np.argmax(y_hat, axis=1)
-                        accuracy = np.mean(predictions == np.argmax(y_batch, axis=1))
-                        batch_accuracies.append(accuracy)
-                        batch_losses.append(loss)
+                    # Calculate error in prediction
+                    loss = self.loss_fn.forward(y_hat, y_batch)
+                    # Calculate gradient w.r.t loss
+                    grad = self.loss_fn.backward(y_hat, y_batch)
+                    # Backpropagation Pass: Calculate Gradients, Weights & Bias
+                    self.backward(grad)
 
-                        scheduler.step()
-                        # Monitoring Metrics
-                        b.set_postfix(
-                            BAcc = accuracy*100,
-                            BLoss = loss,
-                        )
-                        b.update(1)
-                        i += 1
+                    # Gradient Descent: Update Learning Parameters
+                    self.update()
+
+                    # Monitor batch metrics
+                    predictions = np.argmax(y_hat, axis=1)
+                    accuracy = np.mean(predictions == np.argmax(y_batch, axis=1))
+                    batch_accuracies.append(accuracy)
+                    batch_losses.append(loss)
+                    if batch_idx % datamanager.batch_size == 0:
+                        t.set_postfix(tLoss = loss, tAcc = accuracy*100, vLoss = val_loss, vAcc = val_accuracy*100)
+
+                    scheduler.step()
 
                 # Monitor epoch metrics
                 epoch_loss = batch_losses[-1]
@@ -233,12 +230,13 @@ class Model:
                     self.save_checkpoint(checkpoint[0])
 
                 # Monitoring Metrics
-                t.set_postfix(
+                t.refresh()
+                """ t.set_postfix(
                     tLoss = epoch_loss,
                     tAcc = epoch_accuracy*100,
                     vLoss = val_loss,
                     vAcc = val_accuracy*100
-                )
+                ) """
 
         return {
             'training_accuracies': self.training_accuracies,

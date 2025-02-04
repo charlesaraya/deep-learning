@@ -16,9 +16,10 @@ def main():
         # Merge default config with experiment config
         file_path = os.path.join(config.config_dir, file_name)
         experiment_config = load_config(file_path)
-        config.merge_from_other_cfg(experiment_config)
-        if config['run_experiment']:
+        if experiment_config['run_experiment']:
+            config.merge_from_other_cfg(experiment_config)
             # Prep and run experiment
+            print(f"Running Experiment: {file_name}, {config['model']['name']}")
             experiment = ExperimentRunner(Model, MNISTDatasetManager, config)
             experiment.run()
 
