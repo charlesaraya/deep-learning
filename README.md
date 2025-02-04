@@ -11,7 +11,7 @@ The goal is to deepen my understanding of how deep learning works under the hood
   - Online and Mini-batch learning.
   - Sigmoid, Tanh, ReLU, and Softmax activations.
   - Cross-entropy and MSE loss functions.
-  - Metric monitoring: training and validation loss and accuracy metrics.
+  - Metric monitoring: training & validation loss and accuracy.
   - MNIST datamanager: loads raw data set, implements an iterator for mini-batch learning, preps data, and has data visualization support.
   - Dropout regarization.
   - Batch Normazation.
