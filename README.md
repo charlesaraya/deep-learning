@@ -1,5 +1,39 @@
-# Deep Learning
-This repository consists of a bunch of ever growing deep learning model implementations, features, and associated projects. Starting with the classic multi-layer perceptron (MLP), and in the near future, convolutional networks, recurrent networks, and GANs.
+# Deep Learning from Scrath
+This repository is a continuous learning project that serves as playground for exploring deep learning's most fundamental and advanced concepts, where I implement its core components from scratch, without relying on high-level libraries like TensorFlow or PyTorch.
 
-## Table Of Contents
-- Hand-written digit and letter classification with MLP: Train an MLP to classify images.
+The goal is to deepen my understanding of how deep learning works under the hood while showcasing a modular and scalable implemenation of neural network layers, datasets, training and evaluation features to experiments with.
+
+## Feature Evolution
+- **MLP model**:
+  - Weight initialization: random, glorot, and he.
+  - One-hot encoder.
+  - Forward and backpropagation.
+  - Online abd Mini-batch learning.
+  - Sigmoid, Tanh, ReLU, and Softmax activations.
+  - Cross-entropy and MSE loss functions.
+  - Metric monitoring: training and validation loss and accuracy metrics.
+  - MNIST datamanager: loads raw data set, implements an iterator for mini-batch learning, preps data, and has data visualization support.
+  - Dropout regarization.
+  - Batch Normazation.
+  - Smooth laling.
+  - Learninschedulers, with step decay, exponential decay, cosine annealing decay schedulers.
+  - Data gmentation:otation, translation, scaling, shearing, and noising.
+- **Model and Data manager enhancements**:
+  - Modular base model with sequential layers.
+  - Experiment runner: creates and streams experiments set-up via configuration.
+  - Activation and Loss modules.
+  - Layer interface, Dense layer, and Layer factory.
+  - Scheduler factory.
+  - Checkpoints, save and load.
+- **Convolutional Neural Networks**.
+  - Convolution layer.
+  - Pooling layer, with max and average pooling support.
+  - Flatten layer.
+  - EMNIST support.
+- **Model enhancements**:
+  - Rejection-based classification support.
+  - Update method, where each layer performs gradient descent.
+  - Evaluate method, with mini-batch support.
+  - Optimizer module, and SGD with momentum optimizer.
+  - Compile method, to set-up the optimizer and loss function.
+  - Summary method, to print layer and parameter summary.
