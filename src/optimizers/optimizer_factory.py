@@ -1,9 +1,11 @@
 import ast
 
 from optimizers.sgd import SGD
+from optimizers.rmsprop import RMSProp
 
 OPTIMIZERS = {
     'sgd': SGD,
+    'rmsprop': RMSProp,
 }
 
 class OptimizerFactory:
