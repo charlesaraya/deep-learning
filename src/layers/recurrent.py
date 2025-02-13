@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Literal
 
+import data.mnist_data
 from layers.activations import ACTIVATIONS
 from layers.layer import Layer
 
@@ -28,15 +29,28 @@ class Recurrent(Layer):
         """
         super(Recurrent, self).__init__(shape, **kwargs)
 
-        # Initiliaze weights and bias
-        self.weights = self.init_weight(shape, weight_init)
-        self.prev_weights = self.init_weight((shape[1], shape[1]), weight_init)
-        self.bias = np.zeros((1, self.shape[1]))
+        input_dim, hidden_dim, output_dim = shape
+        # Init weights
+        self.weights_x = self.init_weight((input_dim, hidden_dim), weight_init)
+        self.weights_h = self.init_weight((hidden_dim, hidden_dim), weight_init)
+        self.weights_y = self.init_weight((hidden_dim, output_dim), weight_init)
 
+        # Init biases
+        self.bias_h = np.zeros((1, hidden_dim))
+        self.bias_y = np.zeros((1, output_dim))
+
+        # Init hidden state
         self.hidden_state = None
 
-        self.set_trainable_params(self.weights, self.prev_weights, self.bias)
-        self.dweights, self.prev_weights, self.dbias = self.init_gradients()
+        self.set_trainable_params(
+            self.weights_x,
+            self.weights_h,
+            self.weights_y,
+            self.bias_h,
+            self.bias_y,
+        )
+        # Init gradients
+        self.dweights_x, self.dweights_h, self.dweights_y, self.dbias_h, self.dbias_y = self.init_gradients()
 
         # Set activation function
         self.activation: Layer = ACTIVATIONS[activation]
@@ -77,26 +91,42 @@ class Recurrent(Layer):
         #### Returns
             - `np.ndarray`: The output of the layer after applying the linear transformation.
         """
+        # Shape of inputs: (batch_size, sequence_length, input_dim)
         self.input = input_data
-        # Initial state with shape: (batch_size, num_hiddens)
-        batch_size, sequence_length, input_dim = self.input.shape
-        _, hidden_dim = self.shape
+        if self.input.ndim == 2:
+            batch_size, sequence_length = 1, self.input.shape[0]
+            self.input = self.input.reshape((batch_size, sequence_length, -1))
+        elif self.input.ndim == 3:
+            batch_size, sequence_length, _ = self.input.shape
+
+        # Init hidden state. Shape: (batch_size, num_hiddens)
+        hidden_dim = self.shape[1]
         if self.hidden_state is None:
             self.hidden_state = np.zeros((batch_size, hidden_dim))
 
-        output = []
-        # Shape of inputs: (batch_size, sequence_length, input_dim)
+        outputs = []
+        self.hidden_states = []
         for t_step in range(sequence_length):
-            input_t = self.input[:,t_step,:] # Shape: (batch_size, input_dim)
-            input_t_hat = np.dot(input_t, self.weights) + np.dot(self.hidden_state, self.prev_weights) + self.bias
-            self.hidden_state = self.activation.forward(input_t_hat)
-            output.append(self.hidden_state)
+            # Recurrent layer pass
+            input_t = self.input[:, t_step, :] # Shape: (batch_size, input_dim)
+            input_x = np.dot(input_t, self.weights_x)
+            hidden_x = input_x + np.dot(self.hidden_state, self.weights_h) + self.bias_h
 
-        # Shape: (sequence_length, batch_size, hidden_dim)
-        output = np.stack(output, axis=0)
-        # Shape: (batch_size, sequence_length, hidden_dim)
-        output = np.transpose(output, (1, 0, 2))
-        return output, self.hidden_state
+            # Activation
+            hidden_x = self.activation.forward(hidden_x)
+
+            # Output layer pass
+            output_x = np.dot(hidden_x, self.weights_y) + self.bias_y
+
+            self.hidden_states.append(hidden_x)
+            outputs.append(output_x)
+
+        outputs = np.stack(outputs, axis=0)
+        outputs = np.transpose(outputs, axes=(1, 0, 2))
+        self.hidden_states = np.stack(self.hidden_states, axis=0)
+        self.hidden_states = np.transpose(self.hidden_states, axes=(1, 0, 2))
+
+        return outputs[-1]
 
     def backward(self, output_gradient: np.ndarray) -> np.ndarray:
         """Performs the backward pass through the layer.
@@ -110,18 +140,44 @@ class Recurrent(Layer):
         #### Returns
             - `np.ndarray`: The gradient of the loss w.r.t. the layer's input.
         """
-        if self.activation is not None:
-            output_gradient = self.activation.backward(output_gradient)
+        # Shape of inputs: (batch_size, sequence_length, input_dim)
+        _, sequence_length, _ = self.input.shape
+        if output_gradient.ndim == 2:
+            output_gradient = output_gradient.reshape((1, sequence_length, -1))
+        output_gradient = np.transpose(output_gradient, axes=(1, 0, 2))
+        self.hidden_states = np.transpose(self.hidden_states, axes=(1, 0, 2))
 
-        # Gradients for weights and bias
-        self.dweights = np.dot(self.input.T, output_gradient)
-        self.dbias = np.sum(output_gradient, axis=0, keepdims=True)
-        self.gradients = self.dweights, self.dbias
+        dhidden_next = None
+        for t_step in reversed(range(sequence_length)):
+            doutput = output_gradient[t_step]
 
-        # Gradient w.r.t. the input, to be passed to the previous layer
-        dinput = np.dot(output_gradient, self.weights.T)
+            # Gradient w.r.t weights & biases (output layer)
+            self.dweights_y = np.dot(self.hidden_states[t_step].T, doutput)
+            self.dbias_y = np.sum(doutput, axis=0, keepdims=True)
 
-        return dinput
+            # Gradient w.r.t hidden state
+            self.dhidden: np.ndarray = np.dot(doutput, self.weights_y.T)
+
+            # Pull Gradient from next hidden step
+            if dhidden_next is not None: # When we start backprop
+                self.dhidden += np.dot(dhidden_next, self.weights_h.T)
+
+            # Compute gradient w.r.t hidden state
+            self.dhidden = self.activation.backward(self.dhidden)
+
+            dhidden_next = self.dhidden.copy()
+
+            # Gradients w.r.t. weights & biases (recurrent layer)
+            if t_step > 0:
+                self.dweights_h = np.dot(self.hidden_states[t_step-1].T, self.dhidden)
+                self.dbias_h = np.sum(self.dhidden, axis=0, keepdims=True)
+
+            input = self.input[:,t_step,:]
+            self.dweights_x = np.dot(input.T, self.dhidden)
+
+        self.gradients = self.dweights_x, self.dweights_h, self.dweights_y, self.dbias_h, self.dbias_y
+
+        return None
 
     def update(self, learning_rate: float, gradients: list[np.ndarray]) -> None:
         """Updates the layer's parameters (weights and biases) using the computed gradients.
@@ -136,46 +192,100 @@ class Recurrent(Layer):
         #### Returns
             - `None`: Updates the Layer's internal prameters and returns.
         """
-        dweights, dbias = gradients
-        self.weights -= learning_rate * dweights
-        self.bias -= learning_rate * dbias
-        self.trainable_params = self.weights, self.bias
+        dweights_x, dweights_h, dweights_y, dbias_h, dbias_y = gradients
+
+        self.weights_x -= learning_rate * dweights_x
+        self.weights_h -= learning_rate * dweights_h
+        self.bias_h -= learning_rate * dbias_h
+        self.weights_y -= learning_rate * dweights_y
+        self.bias_y -= learning_rate * dbias_y
+
+        self.trainable_params = self.weights_x, self.weights_h, self.weights_y, self.bias_h, self.bias_h
         return None
 
 if __name__ == "__main__":
-    from layers.dense import Dense
-    from data.encoders import OneHotEncoder
+    from sklearn.preprocessing import StandardScaler
+    import math
+    import pandas as pd
 
-    batch_size = 2
-    sequence_length = 3
-    input_dim = 1
-    vocab_length = 5
-    hidden_dim = 32
+    from model.model import Model
+    from data.mnist_data import MNISTDatasetManager
+    from losses.losses import MeanSquaredError
+    from optimizers.schedulers import WarmUpScheduler, StepDecayScheduler
+    from optimizers.sgd import SGD
 
-    onehot = OneHotEncoder(vocab_length)
-    # Generate a random sequence of `sequence_length` from a vocab of `vocab_length`.
-    batch = []
-    for _ in range(batch_size):
-        input = np.random.choice(range(vocab_length), sequence_length, replace=True)
-        input = onehot.encode(input.T)
-        batch.append(input)
-    batch = np.stack(batch)
+    # Load the dataset
+    df = pd.read_csv('./data/time_series/weather/clean_weather.csv')
+    df = df.ffill()
 
-    rnn = Recurrent(shape=(vocab_length, hidden_dim), weight_init='xavier', activation='tanh', name='rnn_1')
-    dense = Dense(shape=(hidden_dim, vocab_length), weight_init='xavier', name='rnn_out')
+    PREDICTORS = ['tmax', 'tmin', 'rain']
+    TARGET = 'tmax_tomorrow'
 
-    output, hidden = rnn.forward(batch)
-    output = dense.forward(output)
+    scaler = StandardScaler()
+    df[PREDICTORS] = scaler.fit_transform(df[PREDICTORS])
+    df[TARGET] = (df[TARGET] - df[TARGET].mean()) / df[TARGET].std()
 
-    def check_len(a, n):
-        """Check the length of a list."""
-        assert len(a) == n, f'list\'s length {len(a)} != expected length {n}'
+    np.random.seed(0)
+    # Shuffle the dataset
+    df = df.sample(frac=1, random_state=42).reset_index(drop=True)  # frac=1 keeps all rows
+    # Define split ratio
+    train_ratio = 0.8
+    val_ratio = 0.10
+    train_end = int(len(df) * train_ratio)
+    val_end = train_end + int(len(df) * val_ratio)
 
-    def check_shape(a, shape):
-        """Check the shape of a tensor."""
-        assert a.shape == shape, \
-                f'tensor\'s shape {a.shape} != expected shape {shape}'
+    # Split the dataset
+    train_data = df.iloc[:train_end]
+    val_data = df.iloc[train_end:val_end]
+    test_data = df.iloc[val_end:]
 
-    check_len(output, batch_size)
-    check_shape(output[0], (sequence_length, vocab_length))
-    check_shape(rnn.hidden_state, (batch_size, hidden_dim))
+    (x_train, y_train), (x_val, y_val), (x_test, y_test) = [(set[PREDICTORS].to_numpy(), set[TARGET].to_numpy()[:,np.newaxis]) for set in (train_data, val_data, test_data)]
+
+    epochs = 10
+    learning_rate = 1e-2
+    learning_rate_start = 1e-6
+    batch_size = 7
+    steps_per_epoch = math.ceil(x_train.shape[0] / batch_size)
+    steps_total = steps_per_epoch * epochs
+
+    # Setup NN
+    rnn = Model(name="rnn")
+
+    datamanager = MNISTDatasetManager(batch_size=batch_size, nlabels=1)
+    datamanager.train_data = (x_train, y_train)
+    datamanager.validation_data = (x_val, y_val)
+    datamanager.test_data = (x_test, y_test)
+
+    # Build model by adding lñayers sequentially
+    rnn.add(Recurrent((3, 4, 1), weight_init='xavier', activation='tanh'))
+
+    rnn.compile(
+        optimizer = SGD(clipvalue=5),
+        loss = MeanSquaredError(),
+    )
+
+    basemodel = StepDecayScheduler(learning_rate, step_size=steps_per_epoch, decay_factor=0.90)
+    scheduler = WarmUpScheduler(basemodel, learning_rate_start, learning_rate, steps_per_epoch*2)
+    # Train
+    output = rnn.train(
+        datamanager,
+        scheduler,
+        epochs,
+    )
+
+    # Inference
+    test_probabilities = rnn.forward(datamanager.test_data[0], is_training=False)
+    test_predictions = np.argmax(test_probabilities, axis=1)
+
+    # Accuracy
+    test_accuracy = np.mean(test_predictions == datamanager.test_data[1])
+
+    # Results
+    print(f"\n{rnn.__str__()}, Epochs: {epochs}, Batch size: {batch_size}, Learning rate: {learning_rate} \
+            \n{"─" * 15} Loss {"─" * 20} \
+            \nTraining Loss:\t{output['training_losses'][-1]:.3} \
+            \nValid Loss:\t{output['validation_losses'][-1]:.3} \
+            \n{"─" * 15} Accuracies {"─" * 15} \
+            \nTraining Acc.:\t{output['training_accuracies'][-1]:.3%} \
+            \nValid Acc.:\t{output['validation_accuracies'][-1]:.3%} \
+            \nTest Acc.:\t{test_accuracy:.3%}\n")
