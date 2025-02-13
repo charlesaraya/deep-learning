@@ -1,7 +1,6 @@
 import numpy as np
 from typing import Literal
 
-import data.mnist_data
 from layers.activations import ACTIVATIONS
 from layers.layer import Layer
 
