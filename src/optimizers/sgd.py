@@ -8,7 +8,12 @@ class SGD(Optimizer):
     This optimizer updates model parameters using the gradient of the loss function 
     while incorporating momentum to accelerate learning and dampen oscillations.
     """
-    def __init__(self, momentum: float = 0.0, **kwargs):
+    def __init__(
+        self,
+        momentum: float = 0.0,
+        clip_gradient_value = None,
+        **kwargs,
+    ):
         """Initializes the SGD with Momentum optimizer.
 
         #### Args
@@ -16,7 +21,10 @@ class SGD(Optimizer):
                 of the previous gradient updates.
             - **kwargs: Additional arguments passed to the parent `Optimizer` class.
         """
-        super(SGD, self).__init__(**kwargs)
+        super(SGD, self).__init__(
+            clip_gradient_value = clip_gradient_value,
+            **kwargs,
+        )
         self.momentum = momentum
         self.model_velocities = []
 
@@ -58,7 +66,9 @@ class SGD(Optimizer):
             raise IndexError(f"Index is out of range. Tried to access the {layer_id} from an array of length {len(self.model_velocities)}.")
         for idx, gradient in enumerate(gradients):
             velocity = self.model_velocities[layer_id][idx]
-            self.model_velocities[layer_id][idx] = self.momentum * velocity + (1 - self.momentum) * gradient
+            gradient = self.momentum * velocity + (1 - self.momentum) * gradient
+            gradient = self.clip_gradients(gradient)
+            self.model_velocities[layer_id][idx] = gradient
         return self.model_velocities[layer_id]
 
 if __name__ == "__main__":
