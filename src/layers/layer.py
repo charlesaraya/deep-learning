@@ -12,9 +12,9 @@ class Layer:
         if uid is not None:
             self.name = f"{self.name}_{uid}"
 
-        self.trainable_params = None
+        self.trainable_params: list = None
         self.total_params = 0
-        self.gradients = None
+        self.gradients: list = None
 
     def set_trainable_params(self, *params) -> None:
         self.trainable_params = []
