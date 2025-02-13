@@ -96,7 +96,7 @@ class Recurrent(Layer):
         output = np.stack(output, axis=0)
         # Shape: (batch_size, sequence_length, hidden_dim)
         output = np.transpose(output, (1, 0, 2))
-        return output
+        return output, self.hidden_state
 
     def backward(self, output_gradient: np.ndarray) -> np.ndarray:
         """Performs the backward pass through the layer.
@@ -164,7 +164,7 @@ if __name__ == "__main__":
     rnn = Recurrent(shape=(vocab_length, hidden_dim), weight_init='xavier', activation='tanh', name='rnn_1')
     dense = Dense(shape=(hidden_dim, vocab_length), weight_init='xavier', name='rnn_out')
 
-    output = rnn.forward(batch)
+    output, hidden = rnn.forward(batch)
     output = dense.forward(output)
 
     def check_len(a, n):
@@ -176,6 +176,6 @@ if __name__ == "__main__":
         assert a.shape == shape, \
                 f'tensor\'s shape {a.shape} != expected shape {shape}'
 
-    check_len(output, num_steps)
-    check_shape(output[0], (batch_size, num_hiddens))
-    check_shape(rnn.hidden_state, (batch_size, num_hiddens))
+    check_len(output, batch_size)
+    check_shape(output[0], (sequence_length, vocab_length))
+    check_shape(rnn.hidden_state, (batch_size, hidden_dim))
