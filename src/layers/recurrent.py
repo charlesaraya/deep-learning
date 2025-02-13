@@ -77,18 +77,26 @@ class Recurrent(Layer):
         #### Returns
             - `np.ndarray`: The output of the layer after applying the linear transformation.
         """
-        # Initial state with shape: (batch_size, num_hiddens)
-        self.hidden_state = np.zeros((input_data.shape[1], self.shape[1])) if self.hidden_state is None else self.hidden_state
-
         self.input = input_data
+        # Initial state with shape: (batch_size, num_hiddens)
+        batch_size, sequence_length, input_dim = self.input.shape
+        _, hidden_dim = self.shape
+        if self.hidden_state is None:
+            self.hidden_state = np.zeros((batch_size, hidden_dim))
+
         output = []
-        for input in self.input:  # Shape of inputs: (num_steps, batch_size, num_inputs)
-            input_hat = np.matmul(input, self.weights) + np.matmul(self.hidden_state, self.prev_weights) + self.bias
-            if self.activation is not None:
-                self.hidden_state = self.activation.forward(input_hat)
+        # Shape of inputs: (batch_size, sequence_length, input_dim)
+        for t_step in range(sequence_length):
+            input_t = self.input[:,t_step,:] # Shape: (batch_size, input_dim)
+            input_t_hat = np.dot(input_t, self.weights) + np.dot(self.hidden_state, self.prev_weights) + self.bias
+            self.hidden_state = self.activation.forward(input_t_hat)
             output.append(self.hidden_state)
 
-        return np.stack(output)
+        # Shape: (sequence_length, batch_size, hidden_dim)
+        output = np.stack(output, axis=0)
+        # Shape: (batch_size, sequence_length, hidden_dim)
+        output = np.transpose(output, (1, 0, 2))
+        return output
 
     def backward(self, output_gradient: np.ndarray) -> np.ndarray:
         """Performs the backward pass through the layer.
@@ -135,11 +143,29 @@ class Recurrent(Layer):
         return None
 
 if __name__ == "__main__":
-    batch_size, num_inputs, num_hiddens, num_steps = 2, 16, 32, 100
-    rnn = Recurrent(shape=(num_inputs, num_hiddens), weight_init='xavier', activation='tanh', name='rnn_1')
+    from layers.dense import Dense
+    from data.encoders import OneHotEncoder
 
-    X = np.ones((num_steps, batch_size, num_inputs))
-    output = rnn.forward(X)
+    batch_size = 2
+    sequence_length = 3
+    input_dim = 1
+    vocab_length = 5
+    hidden_dim = 32
+
+    onehot = OneHotEncoder(vocab_length)
+    # Generate a random sequence of `sequence_length` from a vocab of `vocab_length`.
+    batch = []
+    for _ in range(batch_size):
+        input = np.random.choice(range(vocab_length), sequence_length, replace=True)
+        input = onehot.encode(input.T)
+        batch.append(input)
+    batch = np.stack(batch)
+
+    rnn = Recurrent(shape=(vocab_length, hidden_dim), weight_init='xavier', activation='tanh', name='rnn_1')
+    dense = Dense(shape=(hidden_dim, vocab_length), weight_init='xavier', name='rnn_out')
+
+    output = rnn.forward(batch)
+    output = dense.forward(output)
 
     def check_len(a, n):
         """Check the length of a list."""
