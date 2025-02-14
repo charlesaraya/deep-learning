@@ -12,6 +12,7 @@ class Recurrent(Layer):
         shape: tuple,
         weight_init: str = Literal['random', 'xavier', 'he'],
         activation = None,
+        return_full_output_sequence = False,
         **kwargs
     ):
         """Initializes the Recurrent layer.
@@ -53,6 +54,9 @@ class Recurrent(Layer):
 
         # Set activation function
         self.activation: Layer = ACTIVATIONS[activation]
+
+        # Control forward pass output
+        self.return_full_output_sequence = return_full_output_sequence
 
     def init_weight(self, shape, weight_init):
         """Initializes the weights of a layer using the specified initialization strategy.
@@ -125,7 +129,7 @@ class Recurrent(Layer):
         self.hidden_states = np.stack(self.hidden_states, axis=0)
         self.hidden_states = np.transpose(self.hidden_states, axes=(1, 0, 2))
 
-        return outputs[-1]
+        return outputs if self.return_full_output_sequence else outputs[:, -1]
 
     def backward(self, output_gradient: np.ndarray) -> np.ndarray:
         """Performs the backward pass through the layer.
