@@ -73,8 +73,12 @@ class MeanSquaredError(Loss):
         #### Returns
             - `float`: The mean squared error averaged across all samples.
         """
-        error = np.sum((y - y_hat)**2, axis=1) / y.shape[1]
-        error_batch = np.sum(error) / y.shape[0]
+        if y.ndim == 2:
+            self.N, self.C = y.shape
+        elif y.ndim == 3:
+            self.N, _, self.C = y.shape
+        error = np.sum((y - y_hat)**2, axis=1) / self.C
+        error_batch = np.sum(error) / self.N
         return error_batch
 
     def backward(self, y_hat: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -86,8 +90,7 @@ class MeanSquaredError(Loss):
         #### Returns
             - `np.ndarray`: The gradient w.r.t the loss.
         """
-        N, C = y.shape
-        grad = (2 / (N * C)) * y_hat * ((y_hat  - y)  - np.sum((y_hat  - y) * y_hat, axis=1, keepdims=True))
+        grad = (2 / (self.N * self.C)) * y_hat * ((y_hat  - y)  - np.sum((y_hat  - y) * y_hat, axis=1, keepdims=True))
         return grad
 
 LOSS_FN = {

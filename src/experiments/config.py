@@ -57,6 +57,7 @@ def get_cfg_defaults():
     _C.model.optimizer = CfgNode()
     _C.model.optimizer.name = 'sgd'
     _C.model.optimizer.params = CfgNode(new_allowed=True)
+    _C.model.metrics = 'accuracy'
 
     # Checkpoint configuration
     _C.checkpoint = CfgNode()
