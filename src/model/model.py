@@ -11,15 +11,16 @@ from optimizers.optimizer_factory import OptimizerFactory
 from layers.layer import Layer
 from layers.dense import Dense
 from losses.losses import Loss, LOSS_FN
+from metrics.metrics import Metric, METRICS
 
 class Model:
     """Model base class.
     """
     def __init__(self, name: str = None):
         self.layers: list[Layer] = []
-        self.training_accuracies = []
+        self.training_metrics = []
         self.training_losses = []
-        self.validation_accuracies = []
+        self.validation_metrics = []
         self.validation_losses = []
         self.name = name if name is not None else self.__class__.__name__
 
@@ -27,6 +28,7 @@ class Model:
         self.is_compiled = False
         self.loss_fn = None
         self.optimizer = None
+        self.metrics: Metric = None
 
     def add(self, layer: Layer):
         """Adds a layer to the model's architecture
@@ -43,7 +45,8 @@ class Model:
     def compile(
         self,
         optimizer: str | Optimizer = 'sgd',
-        loss: str | Loss = 'cross-entropy-loss'
+        loss: str | Loss = 'cross-entropy-loss',
+        metrics = None,
     ) -> None:
         """Configures the model for training.
 
@@ -69,8 +72,15 @@ class Model:
         else:
             self.loss_fn: Loss = LOSS_FN[loss]()
 
+        # Metrics
+        if metrics is not None:
+            self.metrics = METRICS[metrics]()
+
         self.is_compiled = True
         return None
+
+    def compute_metrics(self, x, y, y_pred):
+        pass
 
     def _add_padding(self, info: str, column_span: int = 20):
         return " " * (column_span - len(str(info)))
@@ -159,7 +169,7 @@ class Model:
             - dict: Dictionary containing the following:
                 - `'weights'` (`list[np.ndarray]`): Final weights of the model.
                 - `'bias'` (`list[np.ndarray]`): Final biases of the model.
-                - `'training_accuracies'` (`list[float]`): Training accuracy values recorded at each epoch.
+                - `'training_metrics'` (`list[float]`): Training metric values recorded at each epoch.
                 - `'training_losses'` (`list[float]`): Training loss values recorded at each epoch.
         """
         self.epochs = epochs - start_epoch
@@ -167,14 +177,14 @@ class Model:
         self.scheduler = scheduler
 
         val_loss = 0
-        val_accuracy = 0
+        val_metric = 0
 
         if not self.is_compiled:
             self.compile() # compile with default settings
 
         with trange(self.epochs) as t:
             for epoch in t:
-                batch_accuracies, batch_losses = [], []
+                batch_metrics, batch_losses = [], []
                 self.current_epoch = start_epoch + epoch + 1 # used to track checkpoint's epoch. Offset required to skip 0 index.
 
                 total_batches = ceil(datamanager.train_data[0].shape[0] / datamanager.batch_size)
@@ -198,31 +208,28 @@ class Model:
                     self.update()
 
                     # Monitor batch metrics
-                    predictions = np.argmax(y_hat, axis=1)
-                    accuracy = np.mean(predictions == np.argmax(y_batch, axis=1))
-                    batch_accuracies.append(accuracy)
+                    batch_metric = self.metrics.compute_metric(y_hat, y_batch)
+                    batch_metrics.append(batch_metric)
                     batch_losses.append(loss)
                     if batch_idx % datamanager.batch_size == 0:
-                        t.set_postfix(tLoss = loss, tAcc = accuracy*100, vLoss = val_loss, vAcc = val_accuracy*100)
+                        t.set_postfix(tLoss = loss, tAcc = batch_metric*100, vLoss = val_loss, vAcc = val_metric*100)
 
                     scheduler.step()
 
                 # Monitor epoch metrics
                 epoch_loss = batch_losses[-1]
-                epoch_accuracy = batch_accuracies[-1]
-                self.training_accuracies.append(epoch_accuracy)
+                epoch_metrics = batch_metrics[-1]
+                self.training_metrics.append(epoch_metrics)
                 self.training_losses.append(epoch_loss)
 
                 # Validation
                 if datamanager.validation_data:
                     # Accuracy
-                    val_probabilities = self.forward(datamanager.validation_data[0], is_training=False)
-                    val_predictions = np.argmax(val_probabilities, axis=1)
-                    val_labels = np.argmax(datamanager.validation_data[1], axis=1)
-                    val_accuracy = np.mean(val_predictions == val_labels)
-                    self.validation_accuracies.append(val_accuracy)
+                    y_hat_val = self.forward(datamanager.validation_data[0], is_training=False)
+                    val_metric = self.metrics.compute_metric(y_hat_val, datamanager.validation_data[1])
+                    self.validation_metrics.append(val_metric)
                     # Loss
-                    val_loss = self.loss_fn.forward(val_probabilities, datamanager.validation_data[1])
+                    val_loss = self.loss_fn.forward(y_hat_val, datamanager.validation_data[1])
                     self.validation_losses.append(val_loss)
 
                 # Checkpoint
@@ -231,17 +238,11 @@ class Model:
 
                 # Monitoring Metrics
                 t.refresh()
-                """ t.set_postfix(
-                    tLoss = epoch_loss,
-                    tAcc = epoch_accuracy*100,
-                    vLoss = val_loss,
-                    vAcc = val_accuracy*100
-                ) """
 
         return {
-            'training_accuracies': self.training_accuracies,
+            'training_metrics': self.training_metrics,
             'training_losses': self.training_losses,
-            'validation_accuracies': self.validation_accuracies,
+            'validation_metrics': self.validation_metrics,
             'validation_losses': self.validation_losses
         }
 
@@ -271,9 +272,9 @@ class Model:
         np.random.set_state(nn_model.random_state)
         self.layers = nn_model.layers
 
-        self.training_accuracies = nn_model.training_accuracies
+        self.training_metrics = nn_model.training_metrics
         self.training_losses = nn_model.training_losses
-        self.validation_accuracies = nn_model.validation_accuracies
+        self.validation_metrics = nn_model.validation_metrics
         self.validation_losses = nn_model.validation_losses
 
         self.scheduler = nn_model.scheduler

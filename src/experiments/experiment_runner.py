@@ -69,6 +69,7 @@ class ExperimentRunner:
         self.model.compile(
             optimizer = optimizer,
             loss = self.config['loss_fn'],
+            metrics = self.config['model']['metrics']
         )
 
     def run(self) -> None:
