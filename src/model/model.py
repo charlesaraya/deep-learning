@@ -258,6 +258,13 @@ class Model:
 
         return self.metrics.results[data.mode], losses
 
+    def predict(self, data):
+        y_pred = []
+        for X_batch, _ in data:
+            y_hat_batch = self.forward(X_batch, is_training=False)
+            y_pred.append(y_hat_batch)
+        return np.vstack(y_pred)
+
     def load_checkpoint(self, filepath: str):
         """Load serialized model with weights and biases.
 
