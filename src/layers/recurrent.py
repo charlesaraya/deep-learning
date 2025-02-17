@@ -100,8 +100,6 @@ class Recurrent(Layer):
 
         # Init hidden state. Shape: (batch_size, num_hiddens)
         hidden_dim = self.shape[1]
-        """ if self.hidden_state is None:
-            self.hidden_state = np.zeros((batch_size, hidden_dim)) """
         hidden_state_prev = np.zeros((batch_size, hidden_dim))
 
         outputs = []
@@ -238,7 +236,7 @@ if __name__ == "__main__":
         features = [1, 2, 3],
         target = [4],
         fillna = True,
-        train_ratio = 0.8,
+        train_ratio = 0.7,
     )
     datamanager.prepdata()
 

@@ -142,14 +142,12 @@ class Model:
         their parameters using the computed gradients. It applies any available optimization 
         strategy to refine the gradients before updating the layer parameters.
         """
-        idx = 0
-        for layer in self.layers:
+        for idx, layer in enumerate(self.layers):
             if layer.trainable_params is not None:
                 if self.optimizer is not None:
                     computed_gradients = self.optimizer.update(idx, layer.gradients)
                 else:
                     computed_gradients = layer.gradients
-                idx += 1
                 layer.update(self.learning_rate, computed_gradients)
         return None
 
@@ -175,6 +173,7 @@ class Model:
         self.epochs = epochs - start_epoch
         self.datamanager = datamanager
         self.scheduler = scheduler
+        val_loss = [0.0]
 
         if not self.is_compiled:
             raise RuntimeError("Can't start training on an uncompiled model.")

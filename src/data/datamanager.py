@@ -35,7 +35,7 @@ class DatasetManager:
         # Iterate over a divisible (mod 0) dataset length; the last idx should `batch_size`` indices less minus remainder
         num_sequences = len(x_data) - self.sequence_length
         if num_sequences < 0:
-            raise RuntimeError(f"Cannot create a sequence of length {self.sequence_length} out of data with {len(x_data)} samples.")
+            raise RuntimeError(f"Cannot create a sequence of length {self.sequence_length} out of data with {len(x_data)} samples on {self.mode} mode.")
 
         if self.sliding_window:
             for batch_idx in range(0, num_sequences, self.batch_size):
@@ -60,22 +60,26 @@ class DatasetManager:
             features = None,
             target = None,
             fillna = False,
-            train_ratio = 0.8,
-            val_ratio = 0.1,
+            train_ratio = 0.7,
+            val_ratio = 0.2,
         ) -> None:
         """Loads datasets from filepath."""
+        if train_ratio + val_ratio >= 1:
+            raise RuntimeError(f"Training and validation ratios exceed bounds (1.0).")
+
         df = pd.read_csv(filepath)
         # Manage NAs
         df = df.ffill() if fillna else df.dropna()
         features, target = df.iloc[:, features].to_numpy(), df.iloc[:, target].to_numpy()
 
         # Split datasets according to train:validation:test percents
-        train_end = int(len(df) * train_ratio)
-        val_end = train_end + int(train_end * val_ratio)
+        n = len(df)
+        train_end = int(n * train_ratio)
+        val_end = int(n * val_ratio)
 
         self.train_data = features[:train_end], target[:train_end]
-        self.validation_data = features[train_end:val_end], target[train_end:val_end]
-        self.test_data = features[val_end:], target[val_end:]
+        self.validation_data = features[train_end:train_end+val_end], target[train_end:train_end+val_end]
+        self.test_data = features[train_end+val_end:], target[train_end+val_end:]
 
         return None
 
