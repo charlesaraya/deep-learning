@@ -272,13 +272,15 @@ if __name__ == "__main__":
 
     # Inference
     datamanager.mode = 'test'
-    test_results = rnn.evaluate(datamanager, batch_size)
+    test_results, test_loss = rnn.evaluate(datamanager)
+    test_predictions = rnn.predict(datamanager)
 
     # Results
-    print(f"\n{rnn.__str__()}, Epochs: {epochs}, Batch size: {batch_size}, Learning rate: {learning_rate} \
+    print(f"\n{rnn.name}, Epochs: {epochs}, Batch size: {batch_size}, Learning rate: {learning_rate} \
             \n{"─" * 15} Loss {"─" * 20} \
             \nTraining Loss:\t{output['training_losses'][-1]:.3} \
-            \nValid Loss:\t{output['validation_losses'][-1]:.3}")
+            \nValid Loss:\t{output['validation_losses'][-1]:.3} \
+            \nTest Loss:\t{test_loss[-1]:.3}")
 
     print(f"\n{"─" * 15} Metrics {"─" * 15}")
     for metric in output['training_metrics']:
@@ -286,4 +288,16 @@ if __name__ == "__main__":
     for metric in output['validation_metrics']:
         print(f"Valid {metric}:\t{output['validation_metrics'][metric][-1]:.3}")
     for metric in test_results:
-        print(f"Test {metric}:\t{test_results[metric]:.3}")
+        print(f"Test {metric}:\t{test_results[metric][-1]:.3}")
+
+    samples = datamanager.test_data[1].shape[0]
+    num_samples = 10
+    indices = np.random.randint(0, samples, size=num_samples)
+
+    y_test_samples = datamanager.test_data[1][indices][:, -1]
+    y_test_pred_samples = test_predictions[:, -1, -1][indices]
+
+    for pred, target in zip(y_test_pred_samples, y_test_samples):
+        pred = datamanager.y_std * pred + datamanager.y_mean
+        target = datamanager.y_std * target + datamanager.y_mean
+        print(f"Pred:{pred:.2f}, Target: {target:.2f}")
