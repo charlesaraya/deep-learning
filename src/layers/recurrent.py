@@ -150,6 +150,8 @@ class Recurrent(Layer):
         output_gradient = np.transpose(output_gradient, axes=(1, 0, 2))
         self.hidden_states = np.transpose(self.hidden_states, axes=(1, 0, 2))
 
+        # Reset gradients
+        self.dweights_x, self.dweights_h, self.dweights_output, self.dbias_h, self.dbias_output = self.init_gradients()
         dhidden_state_next = np.zeros_like(self.hidden_states[1])
 
         # since in sequence-to-one prediction, only the gradient from h_t+1 propagates back to h_t, we compute the output's contribution to the gradient once.
@@ -236,7 +238,7 @@ if __name__ == "__main__":
         features = [1, 2, 3],
         target = [4],
         fillna = True,
-        train_ratio = 0.9,
+        train_ratio = 0.8,
     )
     datamanager.prepdata()
 
@@ -255,7 +257,7 @@ if __name__ == "__main__":
     rnn.compile(
         optimizer = SGD(clip_gradient_value=5),
         loss = MeanSquaredError(),
-        metrics = ['accuracy']
+        metrics = ['mse']
     )
 
     basemodel = StepDecayScheduler(learning_rate, step_size=steps_per_epoch, decay_factor=0.90)
@@ -269,7 +271,8 @@ if __name__ == "__main__":
     )
 
     # Inference
-    test_results = rnn.evaluate(datamanager.test_data, batch_size)
+    datamanager.mode = 'test'
+    test_results = rnn.evaluate(datamanager, batch_size)
 
     # Results
     print(f"\n{rnn.__str__()}, Epochs: {epochs}, Batch size: {batch_size}, Learning rate: {learning_rate} \
