@@ -176,8 +176,6 @@ class Model:
         self.datamanager = datamanager
         self.scheduler = scheduler
 
-        val_loss = 0.0
-
         if not self.is_compiled:
             raise RuntimeError("Can't start training on an uncompiled model.")
 
@@ -189,7 +187,7 @@ class Model:
                 self.current_epoch = start_epoch + epoch + 1 # used to track checkpoint's epoch. Offset required to skip 0 index.
 
                 total_batches = ceil(datamanager.train_data[0].shape[0] / datamanager.batch_size)
-
+                datamanager.mode = 'training'
                 for batch_idx, (X_batch, y_batch) in enumerate(datamanager):
                     t.set_description(f"Epoch {start_epoch + epoch+1} ({batch_idx+1}/{total_batches})") # Monitor epoch and batch progress in terminal
 
@@ -212,12 +210,12 @@ class Model:
                     if batch_idx % datamanager.batch_size == 0:
                         self.metrics.compute(y_hat, y_batch, 'batch')
                         batch_losses.append(loss)
-                        monitor_dict = {'tLoss': loss, 'vLoss': val_loss}
+                        monitor_dict = {'tLoss': f"{loss:.2f}", 'vLoss': f"{val_loss[-1]:.2f}"}
                         for metric in self.metrics.metrics:
                             t_key_name = 't'+metric.name.capitalize()
                             v_key_name = 'v'+metric.name.capitalize()
-                            monitor_dict[t_key_name] = self.metrics.get_latest_result('batch', metric.name)
-                            monitor_dict[v_key_name] = self.metrics.get_latest_result('validation', metric.name)
+                            monitor_dict[t_key_name] = f"{self.metrics.get_latest_result('batch', metric.name):.2f}"
+                            monitor_dict[v_key_name] = f"{self.metrics.get_latest_result('validation', metric.name):.2f}"
                         t.set_postfix(monitor_dict)
 
                     scheduler.step()
@@ -228,10 +226,9 @@ class Model:
 
                 # Monitor Validation Metrics & Loss
                 if datamanager.validation_data:
-                    y_hat_val = self.forward(datamanager.validation_data[0], is_training=False)
-                    self.metrics.compute(y_hat_val, datamanager.validation_data[1], 'validation')
-                    val_loss = self.loss_fn.forward(y_hat_val, datamanager.validation_data[1])
-                    self.validation_losses.append(val_loss)
+                    datamanager.mode = 'validation'
+                    _, val_loss = self.evaluate(datamanager)
+                    self.validation_losses = val_loss
 
                 # Checkpoint
                 if checkpoint and (epoch+1) % checkpoint[1] == 0 and epoch > 0:
@@ -244,26 +241,22 @@ class Model:
             'training_metrics': self.metrics.results['training'],
             'training_losses': self.training_losses,
             'validation_metrics': self.metrics.results['validation'],
-            'validation_losses': self.validation_losses
+            'validation_losses': self.validation_losses,
         }
 
     def evaluate(self, data: tuple[np.ndarray, np.ndarray], batch_size: int = None):
-        input, y_target = data
+        losses = []
 
-        if batch_size is None:
-            batch_size = len(input)
+        if batch_size:
+            data.batch_size = batch_size
 
-        data_length = len(input)
-        data_indices = np.arange(data_length)
+        for X_batch, y_batch in data:
+            y_hat_batch = self.forward(X_batch, is_training=False)
+            self.metrics.compute(y_hat_batch, y_batch, data.mode)
+            loss = self.loss_fn.forward(y_hat_batch, y_batch)
+            losses.append(loss)
 
-        for start_idx in range(0, len(input), batch_size):
-            end_idx = start_idx + batch_size
-            batch_indices = data_indices[start_idx:end_idx]
-            y_hat = self.forward(input[batch_indices], is_training=False)
-            self.metrics.compute(y_hat, y_target[batch_indices], 'test')
-
-        results = {metric: self.metrics.results['test'][metric][-1] for metric in self.metrics.results['test']}
-        return results
+        return self.metrics.results[data.mode], losses
 
     def load_checkpoint(self, filepath: str):
         """Load serialized model with weights and biases.
