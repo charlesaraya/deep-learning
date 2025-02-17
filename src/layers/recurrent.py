@@ -12,6 +12,7 @@ class Recurrent(Layer):
         shape: tuple,
         weight_init: str = Literal['random', 'xavier', 'he'],
         activation = None,
+        sequence_2_sequence = False,
         **kwargs
     ):
         """Initializes the Recurrent layer.
@@ -49,10 +50,13 @@ class Recurrent(Layer):
             self.bias_y,
         )
         # Init gradients
-        self.dweights_x, self.dweights_h, self.dweights_y, self.dbias_h, self.dbias_y = self.init_gradients()
+        self.dweights_x, self.dweights_h, self.dweights_output, self.dbias_h, self.dbias_output = self.init_gradients()
 
         # Set activation function
         self.activation: Layer = ACTIVATIONS[activation]
+
+        # Control forward pass output
+        self.sequence_2_sequence = sequence_2_sequence
 
     def init_weight(self, shape, weight_init):
         """Initializes the weights of a layer using the specified initialization strategy.
@@ -92,16 +96,13 @@ class Recurrent(Layer):
         """
         # Shape of inputs: (batch_size, sequence_length, input_dim)
         self.input = input_data
-        if self.input.ndim == 2:
-            batch_size, sequence_length = 1, self.input.shape[0]
-            self.input = self.input.reshape((batch_size, sequence_length, -1))
-        elif self.input.ndim == 3:
-            batch_size, sequence_length, _ = self.input.shape
+        batch_size, sequence_length, _ = self.input.shape
 
         # Init hidden state. Shape: (batch_size, num_hiddens)
         hidden_dim = self.shape[1]
-        if self.hidden_state is None:
-            self.hidden_state = np.zeros((batch_size, hidden_dim))
+        """ if self.hidden_state is None:
+            self.hidden_state = np.zeros((batch_size, hidden_dim)) """
+        hidden_state_prev = np.zeros((batch_size, hidden_dim))
 
         outputs = []
         self.hidden_states = []
@@ -109,23 +110,28 @@ class Recurrent(Layer):
             # Recurrent layer pass
             input_t = self.input[:, t_step, :] # Shape: (batch_size, input_dim)
             input_x = np.dot(input_t, self.weights_x)
-            hidden_x = input_x + np.dot(self.hidden_state, self.weights_h) + self.bias_h
+
+            # Update hidden state
+            hidden_state = np.dot(hidden_state_prev, self.weights_h) + self.bias_h
 
             # Activation
-            hidden_x = self.activation.forward(hidden_x)
+            hidden_state = self.activation.forward(hidden_state + input_x)
+            self.hidden_states.append(hidden_state)
 
             # Output layer pass
-            output_x = np.dot(hidden_x, self.weights_y) + self.bias_y
-
-            self.hidden_states.append(hidden_x)
+            output_x = np.dot(hidden_state, self.weights_y) + self.bias_y
             outputs.append(output_x)
+
+            hidden_state_prev = hidden_state.copy()
 
         outputs = np.stack(outputs, axis=0)
         outputs = np.transpose(outputs, axes=(1, 0, 2))
         self.hidden_states = np.stack(self.hidden_states, axis=0)
         self.hidden_states = np.transpose(self.hidden_states, axes=(1, 0, 2))
 
-        return outputs[-1]
+        if not self.sequence_2_sequence:
+            outputs = outputs[:, -1, np.newaxis]
+        return outputs
 
     def backward(self, output_gradient: np.ndarray) -> np.ndarray:
         """Performs the backward pass through the layer.
@@ -141,40 +147,43 @@ class Recurrent(Layer):
         """
         # Shape of inputs: (batch_size, sequence_length, input_dim)
         _, sequence_length, _ = self.input.shape
-        if output_gradient.ndim == 2:
-            output_gradient = output_gradient.reshape((1, sequence_length, -1))
         output_gradient = np.transpose(output_gradient, axes=(1, 0, 2))
         self.hidden_states = np.transpose(self.hidden_states, axes=(1, 0, 2))
 
-        dhidden_next = None
+        dhidden_state_next = np.zeros_like(self.hidden_states[1])
+
+        # since in sequence-to-one prediction, only the gradient from h_t+1 propagates back to h_t, we compute the output's contribution to the gradient once.
+        if not self.sequence_2_sequence:
+            doutput_x = output_gradient[-1]
+            self.dweights_output = np.dot(self.hidden_states[-1].T, doutput_x)
+            self.dbias_output = np.sum(doutput_x, axis=0, keepdims=True)
+            dhidden_state = np.dot(doutput_x, self.weights_y.T)
+
         for t_step in reversed(range(sequence_length)):
-            doutput = output_gradient[t_step]
+            # Output layer pass
+            # Each time step contributes both an output gradient and the next hidden state's gradient to h_t
+            if self.sequence_2_sequence:
+                doutput_x = output_gradient[t_step]
+                self.dweights_output += np.dot(self.hidden_states[t_step].T, doutput_x)
+                self.dbias_output += np.sum(doutput_x, axis=0, keepdims=True)
+                dhidden_state = np.dot(doutput_x, self.weights_y.T)
 
-            # Gradient w.r.t weights & biases (output layer)
-            self.dweights_y = np.dot(self.hidden_states[t_step].T, doutput)
-            self.dbias_y = np.sum(doutput, axis=0, keepdims=True)
+            if t_step < sequence_length-1:
+                dhidden_state += np.dot(dhidden_state_next, self.dweights_h.T)
 
-            # Gradient w.r.t hidden state
-            self.dhidden: np.ndarray = np.dot(doutput, self.weights_y.T)
+            # Activation: Pull gradient value across nonlinearity
+            dhidden_state = self.activation.backward(dhidden_state)
 
-            # Pull Gradient from next hidden step
-            if dhidden_next is not None: # When we start backprop
-                self.dhidden += np.dot(dhidden_next, self.weights_h.T)
+            # Store to compute hidden unit gradient for previous sequence
+            dhidden_state_next = dhidden_state.copy()
 
-            # Compute gradient w.r.t hidden state
-            self.dhidden = self.activation.backward(self.dhidden)
+            # Recurrent layer pass: # Gradients w.r.t. weights, biases, and input
+            if t_step > 0:  # No gradient contribution at the first step.
+                self.dweights_h += np.dot(self.hidden_states[t_step-1].T, dhidden_state)
+                self.dbias_h += np.sum(dhidden_state, axis=0, keepdims=True)
+            self.dweights_x += np.dot(self.input[:,t_step,:].T, dhidden_state)
 
-            dhidden_next = self.dhidden.copy()
-
-            # Gradients w.r.t. weights & biases (recurrent layer)
-            if t_step > 0:
-                self.dweights_h = np.dot(self.hidden_states[t_step-1].T, self.dhidden)
-                self.dbias_h = np.sum(self.dhidden, axis=0, keepdims=True)
-
-            input = self.input[:,t_step,:]
-            self.dweights_x = np.dot(input.T, self.dhidden)
-
-        self.gradients = self.dweights_x, self.dweights_h, self.dweights_y, self.dbias_h, self.dbias_y
+        self.gradients = self.dweights_x, self.dweights_h, self.dweights_output, self.dbias_h, self.dbias_output
 
         return None
 
@@ -208,63 +217,49 @@ if __name__ == "__main__":
     import pandas as pd
 
     from model.model import Model
-    from data.mnist_data import MNISTDatasetManager
+    from data.datamanager import DatasetManager
     from losses.losses import MeanSquaredError
     from optimizers.schedulers import WarmUpScheduler, StepDecayScheduler
     from optimizers.sgd import SGD
 
+    np.random.seed(0) # Reproducibility
     # Load the dataset
-    df = pd.read_csv('./data/time_series/weather/clean_weather.csv')
-    df = df.ffill()
-
-    PREDICTORS = ['tmax', 'tmin', 'rain']
-    TARGET = 'tmax_tomorrow'
-
-    scaler = StandardScaler()
-    df[PREDICTORS] = scaler.fit_transform(df[PREDICTORS])
-    df[TARGET] = (df[TARGET] - df[TARGET].mean()) / df[TARGET].std()
-
-    np.random.seed(0)
-    # Shuffle the dataset
-    df = df.sample(frac=1, random_state=42).reset_index(drop=True)  # frac=1 keeps all rows
-    # Define split ratio
-    train_ratio = 0.8
-    val_ratio = 0.10
-    train_end = int(len(df) * train_ratio)
-    val_end = train_end + int(len(df) * val_ratio)
-
-    # Split the dataset
-    train_data = df.iloc[:train_end]
-    val_data = df.iloc[train_end:val_end]
-    test_data = df.iloc[val_end:]
-
-    (x_train, y_train), (x_val, y_val), (x_test, y_test) = [(set[PREDICTORS].to_numpy(), set[TARGET].to_numpy()[:,np.newaxis]) for set in (train_data, val_data, test_data)]
+    batch_size = 10
+    datamanager = DatasetManager(
+        batch_size = batch_size,
+        sequence_length = 7,
+        sliding_window = True,
+    )
+    datamanager.load_data(
+        filepath = './data/time_series/weather/clean_weather.csv',
+        features = [1, 2, 3],
+        target = [4],
+        fillna = True,
+        train_ratio = 0.9,
+    )
+    datamanager.prepdata()
 
     epochs = 10
     learning_rate = 1e-2
     learning_rate_start = 1e-6
-    batch_size = 7
-    steps_per_epoch = math.ceil(x_train.shape[0] / batch_size)
+    steps_per_epoch = math.ceil(datamanager.train_data[0].shape[0] / batch_size)
     steps_total = steps_per_epoch * epochs
 
     # Setup NN
     rnn = Model(name="rnn")
 
-    datamanager = MNISTDatasetManager(batch_size=batch_size, nlabels=1)
-    datamanager.train_data = (x_train, y_train)
-    datamanager.validation_data = (x_val, y_val)
-    datamanager.test_data = (x_test, y_test)
-
     # Build model by adding lñayers sequentially
     rnn.add(Recurrent((3, 4, 1), weight_init='xavier', activation='tanh'))
 
     rnn.compile(
-        optimizer = SGD(clipvalue=5),
+        optimizer = SGD(clip_gradient_value=5),
         loss = MeanSquaredError(),
+        metrics = ['accuracy']
     )
 
     basemodel = StepDecayScheduler(learning_rate, step_size=steps_per_epoch, decay_factor=0.90)
     scheduler = WarmUpScheduler(basemodel, learning_rate_start, learning_rate, steps_per_epoch*2)
+
     # Train
     output = rnn.train(
         datamanager,
