@@ -20,6 +20,8 @@ class DatasetManager:
         self.mode = 'training'
         self.is_full_sequence = is_full_sequence
 
+        self.x_std, self.x_mean, self.y_mean, self.y_std = 0, 0, 0, 0
+
     def __iter__(self):
         """Generates iterable mini-batches of training data."""
         match self.mode:
@@ -79,16 +81,21 @@ class DatasetManager:
 
     def prepdata(self) -> None:
         """Prepares and preprocesses the training, validation, and test datasets.
-
-        Normalizes values.
         """
+        x_data, y_data = self.train_data
+        self.x_mean = np.mean(x_data, axis=0)
+        self.x_std = np.std(x_data, axis=0)
+        self.y_mean = np.mean(x_data, axis=0)
+        self.y_std = np.std(x_data, axis=0)
+
         for dataset_name in ["train_data", "validation_data", "test_data"]:
             # Access dataset dynamically
             x_data, y_data = getattr(self, dataset_name)
 
             # Normalize
-            x_data = (x_data - np.mean(x_data, axis=0)) / np.std(x_data, axis=0)
-            y_data = (y_data - np.mean(y_data, axis=0)) / np.std(y_data, axis=0)
+            epsilon = 1e-8
+            x_data = (x_data - self.x_mean) / (self.x_std + epsilon)
+            y_data = (y_data - self.y_mean) / (self.y_std + epsilon)
 
             # Reassign dynamically back to the original dataset
             setattr(self, dataset_name, (x_data, y_data))
