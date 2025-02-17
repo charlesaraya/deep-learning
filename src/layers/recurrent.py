@@ -221,6 +221,7 @@ if __name__ == "__main__":
     from losses.losses import MeanSquaredError
     from optimizers.schedulers import WarmUpScheduler, StepDecayScheduler
     from optimizers.sgd import SGD
+    import metrics.metrics as m
 
     np.random.seed(0) # Reproducibility
     # Load the dataset
@@ -268,18 +269,18 @@ if __name__ == "__main__":
     )
 
     # Inference
-    test_probabilities = rnn.forward(datamanager.test_data[0], is_training=False)
-    test_predictions = np.argmax(test_probabilities, axis=1)
-
-    # Accuracy
-    test_accuracy = np.mean(test_predictions == datamanager.test_data[1])
+    test_results = rnn.evaluate(datamanager.test_data, batch_size)
 
     # Results
     print(f"\n{rnn.__str__()}, Epochs: {epochs}, Batch size: {batch_size}, Learning rate: {learning_rate} \
             \n{"─" * 15} Loss {"─" * 20} \
             \nTraining Loss:\t{output['training_losses'][-1]:.3} \
-            \nValid Loss:\t{output['validation_losses'][-1]:.3} \
-            \n{"─" * 15} Accuracies {"─" * 15} \
-            \nTraining Acc.:\t{output['training_accuracies'][-1]:.3%} \
-            \nValid Acc.:\t{output['validation_accuracies'][-1]:.3%} \
-            \nTest Acc.:\t{test_accuracy:.3%}\n")
+            \nValid Loss:\t{output['validation_losses'][-1]:.3}")
+
+    print(f"\n{"─" * 15} Metrics {"─" * 15}")
+    for metric in output['training_metrics']:
+        print(f"Training {metric}:\t{output['training_metrics'][metric][-1]:.3}")
+    for metric in output['validation_metrics']:
+        print(f"Valid {metric}:\t{output['validation_metrics'][metric][-1]:.3}")
+    for metric in test_results:
+        print(f"Test {metric}:\t{test_results[metric]:.3}")
