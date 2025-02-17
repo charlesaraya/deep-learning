@@ -152,28 +152,36 @@ class Recurrent(Layer):
 
         dhidden_state_next = np.zeros_like(self.hidden_states[1])
 
-        for t_step in reversed(range(sequence_length)):
-            # Output layer pass: Gradient w.r.t output layer's weights, biases, & hidden state
-            doutput_x = output_gradient[t_step]
-            self.dweights_output += np.dot(self.hidden_states[t_step].T, doutput_x) # output_x = np.dot(hidden_state, self.weights_y) + self.bias_y
-            self.dbias_output += np.sum(doutput_x, axis=0, keepdims=True)
-            dhidden_output =  np.dot(doutput_x, self.weights_y.T)
+        # since in sequence-to-one prediction, only the gradient from h_t+1 propagates back to h_t, we compute the output's contribution to the gradient once.
+        if not self.sequence_2_sequence:
+            doutput_x = output_gradient[-1]
+            self.dweights_output = np.dot(self.hidden_states[-1].T, doutput_x)
+            self.dbias_output = np.sum(doutput_x, axis=0, keepdims=True)
+            dhidden_state = np.dot(doutput_x, self.weights_y.T)
 
-            # Propagates gradient to hidden unit
+        for t_step in reversed(range(sequence_length)):
+            # Output layer pass
+            # Each time step contributes both an output gradient and the next hidden state's gradient to h_t
+            if self.sequence_2_sequence:
+                doutput_x = output_gradient[t_step]
+                self.dweights_output += np.dot(self.hidden_states[t_step].T, doutput_x)
+                self.dbias_output += np.sum(doutput_x, axis=0, keepdims=True)
+                dhidden_state = np.dot(doutput_x, self.weights_y.T)
+
             if t_step < sequence_length-1:
-                dhidden_state = np.dot(dhidden_state_next, self.dweights_h.T) # hidden_state = np.dot(hidden_state_prev, self.weights_h) + self.bias_h
+                dhidden_state += np.dot(dhidden_state_next, self.dweights_h.T)
 
             # Activation: Pull gradient value across nonlinearity
-            dhidden_state = self.activation.backward(dhidden_output + dhidden_state) # hidden_state = self.activation.forward(hidden_state + input_x)
+            dhidden_state = self.activation.backward(dhidden_state)
 
             # Store to compute hidden unit gradient for previous sequence
             dhidden_state_next = dhidden_state.copy()
 
             # Recurrent layer pass: # Gradients w.r.t. weights, biases, and input
-            if t_step > 0:  # If we're not at the very beginning
-                self.dweights_h += np.dot(self.hidden_states[t_step-1].T, dhidden_state) # hidden_state = np.dot(hidden_state_prev, self.weights_h) + self.bias_h
+            if t_step > 0:  # No gradient contribution at the first step.
+                self.dweights_h += np.dot(self.hidden_states[t_step-1].T, dhidden_state)
                 self.dbias_h += np.sum(dhidden_state, axis=0, keepdims=True)
-            self.dweights_x = np.dot(self.input[:,t_step,:].T, dhidden_state)
+            self.dweights_x += np.dot(self.input[:,t_step,:].T, dhidden_state)
 
         self.gradients = self.dweights_x, self.dweights_h, self.dweights_output, self.dbias_h, self.dbias_output
 
@@ -246,6 +254,7 @@ if __name__ == "__main__":
     rnn.compile(
         optimizer = SGD(clip_gradient_value=5),
         loss = MeanSquaredError(),
+        metrics = ['accuracy']
     )
 
     basemodel = StepDecayScheduler(learning_rate, step_size=steps_per_epoch, decay_factor=0.90)
