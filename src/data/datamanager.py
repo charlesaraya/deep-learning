@@ -85,8 +85,8 @@ class DatasetManager:
         x_data, y_data = self.train_data
         self.x_mean = np.mean(x_data, axis=0)
         self.x_std = np.std(x_data, axis=0)
-        self.y_mean = np.mean(x_data, axis=0)
-        self.y_std = np.std(x_data, axis=0)
+        self.y_mean = np.mean(y_data)
+        self.y_std = np.std(y_data)
 
         for dataset_name in ["train_data", "validation_data", "test_data"]:
             # Access dataset dynamically
