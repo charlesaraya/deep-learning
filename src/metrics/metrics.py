@@ -59,7 +59,7 @@ class MetricManager:
         if not self.results[scope][metric_name]:
             return 0.0
         else:
-            return self.results[scope][metric_name][-1]
+            return np.mean(self.results[scope][metric_name])
 
 class Accuracy(Metric):
     def __init__(self, name: str = 'accuracy'):
