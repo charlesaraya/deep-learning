@@ -7,6 +7,7 @@ import pickle
 from data.mnist_data import MNISTDatasetManager
 from optimizers.schedulers import Scheduler
 from optimizers.optimizer import Optimizer
+from optimizers.early_stopping import EarlyStopping
 from optimizers.optimizer_factory import OptimizerFactory
 from layers.layer import Layer
 from layers.dense import Dense
@@ -18,9 +19,9 @@ class Model:
     """
     def __init__(self, name: str = None):
         self.layers: list[Layer] = []
-        self.training_metrics = []
+        self.training_metrics = {}
         self.training_losses = []
-        self.validation_metrics = []
+        self.validation_metrics = {}
         self.validation_losses = []
         self.name = name if name is not None else self.__class__.__name__
 
@@ -29,6 +30,7 @@ class Model:
         self.loss_fn = None
         self.optimizer = None
         self.metrics: MetricManager = None
+        self.early_stopping = None
 
     def add(self, layer: Layer):
         """Adds a layer to the model's architecture
@@ -47,6 +49,7 @@ class Model:
         optimizer: str | Optimizer = 'sgd',
         loss: str | Loss = 'cross-entropy-loss',
         metrics = None,
+        early_stopping = None,
     ) -> None:
         """Configures the model for training.
 
@@ -57,7 +60,6 @@ class Model:
             - optimizer (Optimizer): The optimization algorithm to be used to update the model's parameters (default = 'sgd').
             - `loss_fn` (`str` | `Loss`): The loss function to be used to calculate the predictive error of the model (default = 'cross-entropy-loss').
         """
-        # Optimizer
         if isinstance(optimizer, Optimizer):
             self.optimizer = optimizer
         else:
@@ -75,6 +77,12 @@ class Model:
         # Metrics
         if metrics is not None and isinstance(metrics, (str, list, tuple)):
             self.metrics = MetricManager(metrics)
+            for metric in self.metrics.metrics:
+                self.training_metrics[metric.name] = []
+                self.validation_metrics[metric.name] = []
+
+        if early_stopping is not None and isinstance(early_stopping, EarlyStopping):
+            self.early_stopping = early_stopping
 
         self.is_compiled = True
         return None
@@ -142,10 +150,12 @@ class Model:
         their parameters using the computed gradients. It applies any available optimization 
         strategy to refine the gradients before updating the layer parameters.
         """
-        for idx, layer in enumerate(self.layers):
+        idx = 0
+        for layer in self.layers:
             if layer.trainable_params is not None:
                 if self.optimizer is not None:
                     computed_gradients = self.optimizer.update(idx, layer.gradients)
+                    idx += 1
                 else:
                     computed_gradients = layer.gradients
                 layer.update(self.learning_rate, computed_gradients)
@@ -173,7 +183,8 @@ class Model:
         self.epochs = epochs - start_epoch
         self.datamanager = datamanager
         self.scheduler = scheduler
-        val_loss = [0.0]
+        self.trainig_on = True
+        val_loss = 0.0
 
         if not self.is_compiled:
             raise RuntimeError("Can't start training on an uncompiled model.")
@@ -209,25 +220,30 @@ class Model:
                     if batch_idx % datamanager.batch_size == 0:
                         self.metrics.compute(y_hat, y_batch, 'batch')
                         batch_losses.append(loss)
-                        monitor_dict = {'tLoss': f"{loss:.2f}", 'vLoss': f"{val_loss[-1]:.2f}"}
+                        monitor_dict = {'tLoss': f"{loss:.4f}", 'vLoss': f"{val_loss:.4f}"}
                         for metric in self.metrics.metrics:
                             t_key_name = 't'+metric.name.capitalize()
                             v_key_name = 'v'+metric.name.capitalize()
-                            monitor_dict[t_key_name] = f"{self.metrics.get_latest_result('batch', metric.name):.2f}"
-                            monitor_dict[v_key_name] = f"{self.metrics.get_latest_result('validation', metric.name):.2f}"
+                            monitor_dict[t_key_name] = f"{self.metrics.get_latest_result('batch', metric.name):.4f}"
+                            monitor_dict[v_key_name] = f"{self.metrics.get_latest_result('validation', metric.name):.4f}"
                         t.set_postfix(monitor_dict)
 
                     scheduler.step()
 
                 # Monitor epoch metrics
                 self.metrics.compute(y_hat, y_batch, 'training')
-                self.training_losses.append(loss)
+                for metric in self.metrics.metrics:
+                    self.training_metrics[metric.name].append(self.metrics.get_latest_result('training', metric.name))
+                self.training_losses.append(np.mean(batch_losses))
 
                 # Monitor Validation Metrics & Loss
                 if datamanager.validation_data:
                     datamanager.mode = 'validation'
-                    _, val_loss = self.evaluate(datamanager)
-                    self.validation_losses = val_loss
+                    _, val_loss = self.evaluate()
+                    for metric in self.metrics.metrics:
+                        self.validation_metrics[metric.name].append(self.metrics.get_latest_result('validation', metric.name))
+                    val_loss = np.mean(val_loss)
+                    self.validation_losses.append(val_loss)
 
                 # Checkpoint
                 if checkpoint and (epoch+1) % checkpoint[1] == 0 and epoch > 0:
@@ -235,31 +251,33 @@ class Model:
 
                 # Monitoring Metrics
                 t.refresh()
+                if self.early_stopping and datamanager.validation_data:
+                    if self.early_stopping(val_loss):
+                        self.trainig_on = False
+                        print(f"Early Stopping triggered at epoch {epoch}")
+                        break
 
         return {
-            'training_metrics': self.metrics.results['training'],
+            'training_metrics': self.training_metrics,
             'training_losses': self.training_losses,
-            'validation_metrics': self.metrics.results['validation'],
+            'validation_metrics': self.validation_metrics,
             'validation_losses': self.validation_losses,
         }
 
-    def evaluate(self, data: tuple[np.ndarray, np.ndarray], batch_size: int = None):
+    def evaluate(self):
         losses = []
 
-        if batch_size:
-            data.batch_size = batch_size
-
-        for X_batch, y_batch in data:
+        for X_batch, y_batch in self.datamanager:
             y_hat_batch = self.forward(X_batch, is_training=False)
-            self.metrics.compute(y_hat_batch, y_batch, data.mode)
+            self.metrics.compute(y_hat_batch, y_batch, self.datamanager.mode)
             loss = self.loss_fn.forward(y_hat_batch, y_batch)
             losses.append(loss)
 
-        return self.metrics.results[data.mode], losses
+        return self.metrics.results[self.datamanager.mode], losses
 
-    def predict(self, data):
+    def predict(self):
         y_pred = []
-        for X_batch, _ in data:
+        for X_batch, _ in self.datamanager:
             y_hat_batch = self.forward(X_batch, is_training=False)
             y_pred.append(y_hat_batch)
         return np.vstack(y_pred)

@@ -8,6 +8,7 @@ from data.mnist_data import MNISTDatasetManager
 from optimizers.scheduler_factory import SchedulerFactory
 from layers.layer_factory import LayerFactory
 from optimizers.optimizer_factory import OptimizerFactory
+from optimizers.early_stopping import EarlyStopping
 
 class ExperimentRunner:
     def __init__(self, model: Model, datamanager: MNISTDatasetManager, config: dict):
@@ -66,10 +67,14 @@ class ExperimentRunner:
             self.config['model']['optimizer']['name'],
             self.config['model']['optimizer']['params']
         )
+
+        early_stopping = EarlyStopping() if self.config['model']['early_stopping'] else None
+
         self.model.compile(
             optimizer = optimizer,
             loss = self.config['loss_fn'],
-            metrics = self.config['model']['metrics']
+            metrics = self.config['model']['metrics'],
+            early_stopping = early_stopping,
         )
 
     def run(self) -> None:
@@ -85,18 +90,18 @@ class ExperimentRunner:
             ],
         )
         # Evaluate
-        test_accuracy = self.evaluate(
-            batch_size = self.config['model']['batch_eval'],
+        test_results = self.evaluate(
             rejection_criteria = self.config['test']['evaluation']['rejection_criteria'],
         )
 
         # Log Results
-        self.log_results(results, test_accuracy)
+        self.log_results(results, test_results)
 
-    def evaluate(self, batch_size = None, rejection_criteria: list[float] = None):
+    def evaluate(self, rejection_criteria: list[float] = None):
         """Evaluates the model on the test dataset."""
         # Inference
-        test_probabilities = self.model.evaluate(self.datamanager.test_data[0], batch_size=batch_size)
+        self.datamanager.mode = 'test'
+        test_probabilities = self.model.predict()
         test_predictions = np.argmax(test_probabilities, axis=1) + self.config['dataset']['label_offset']
 
         # Calculate Rejection
@@ -105,8 +110,8 @@ class ExperimentRunner:
             self.reject(test_probabilities, test_predictions, rejection_criteria)
 
         # Calculate Accuracy
-        test_accuracy = np.mean(test_predictions == self.datamanager.test_data[1])
-        return test_accuracy
+        test_results = self.model.evaluate()
+        return test_results
 
     def reject(self, test_probabilities: np.ndarray, test_predictions: np.ndarray, rejection_criteria: list[float]) -> None:
         self.rejection_metrics = True
@@ -144,7 +149,7 @@ class ExperimentRunner:
 
     def _create_model_name(self):
         """Creates model name based on architecture
-        
+
         Example: mlp_model[784-256-256-10]
         """
         model_name = f'mlp_model[{self.config['input_layer']}'
@@ -152,19 +157,21 @@ class ExperimentRunner:
         model_name += f'-{self.config['output_layer']}]'
         return model_name
 
-    def log_results(self, train_results, test_accuracy):
+    def log_results(self, train_results, test_results):
         """Logs the results of the experiment."""
-        #model_name = self._create_model_name()
-        model_name = self.model.__str__()
-        print(f"\n{model_name}, Epochs: {self.config['epochs']}, Batch size: {self.config['dataset']['batch_size']}, " +
-                f"Learning rate: {self.config['scheduler']['params']['lr_max']} \
+        print(f"\n{self.model.name}, Epochs: {self.config['epochs']}, Batch size: {self.config['dataset']['batch_size']}, Learning rate: {self.config['scheduler']['params']['lr_max']} \
                 \n{"─" * 15} Loss {"─" * 20} \
-                \nTraining Loss:\t{train_results['training_losses'][-1]:.3} \
-                \nValid Loss:\t{train_results['validation_losses'][-1]:.3} \
-                \n{"─" * 15} Accuracies {"─" * 15} \
-                \nTraining Acc.:\t{train_results['training_accuracies'][-1]:.3%} \
-                \nValid Acc.:\t{train_results['validation_accuracies'][-1]:.3%} \
-                \nTest Acc.:\t{test_accuracy:.3%}\n")
+                \nTraining Loss:\t{train_results['training_losses'][-1]:.4} \
+                \nValid Loss:\t{train_results['validation_losses'][-1]:.4} \
+                \nTest Loss:\t{test_results[1][-1]:.4}")
+
+        print(f"\n{"─" * 15} Metrics {"─" * 15}")
+        for metric in train_results['training_metrics']:
+            print(f"Training {metric}:\t{train_results['training_metrics'][metric][-1]:.4}")
+        for metric in train_results['validation_metrics']:
+            print(f"Valid {metric}:\t{train_results['validation_metrics'][metric][-1]:.4}")
+        for metric in test_results[0]:
+            print(f"Test {metric}:\t{test_results[0][metric][-1]:.4}")
 
         if self.rejection_metrics:
             print(f"{"─" * 15} Rejection Strategy {"─" * 15} \
@@ -174,7 +181,7 @@ class ExperimentRunner:
 
         experiment_filepath = os.path.join(
             self.config['log_filepath'], 
-            model_name
+            self.model.name
         )
         if not os.path.exists(experiment_filepath):
             os.makedirs(experiment_filepath)
@@ -188,7 +195,9 @@ class ExperimentRunner:
         with open(experiment_filepath, 'w') as f:
             json.dump({
                 'training_losses': train_results['training_losses'],
-                'training_accuracies': train_results['training_accuracies'],
+                'training_metrics': train_results['training_metrics'],
                 'validation_losses': train_results['validation_losses'],
-                'validation_accuracies': train_results['validation_accuracies']
+                'validation_metrics': train_results['validation_metrics'],
+                'test_losses': test_results[1],
+                'test_metrics': test_results[0],
                 }, f)

@@ -41,6 +41,7 @@ class MNISTDatasetManager:
         self.train_data = None
         self.test_data = None
         self.validation_data = None
+        self.mode = 'training'
 
         self.AUGMENTATION_FN = [
             self._generate_rotation,
@@ -52,10 +53,13 @@ class MNISTDatasetManager:
 
     def __iter__(self):
         """Generates iterable mini-batches of training data."""
-        if self.train_data is None:
-            raise ValueError('No training data available.')
-
-        images, labels = self.train_data
+        match self.mode:
+            case 'training':
+                images, labels = self.train_data
+            case 'validation':
+                images, labels = self.validation_data
+            case 'test':
+                images, labels = self.test_data
 
         # Shuffle before each epoch to reduce bias from the order of the data and speed up convergence.
         images, labels = self._shuffle_data(images, labels) 
@@ -229,8 +233,9 @@ class MNISTDatasetManager:
         if self.test_data is None:
             raise ValueError('No test data available.')
 
-        # Prep Data
+        # Encode
         self.train_data = self.train_data[0], self.encoder.encode(self.train_data[1])
+        self.test_data = self.test_data[0], self.encoder.encode(self.test_data[1])
 
         for dataset_name in ["train_data", "test_data"]:
             # Access dataset dynamically
