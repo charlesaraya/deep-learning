@@ -8,6 +8,7 @@ from data.mnist_data import MNISTDatasetManager
 from optimizers.scheduler_factory import SchedulerFactory
 from layers.layer_factory import LayerFactory
 from optimizers.optimizer_factory import OptimizerFactory
+from optimizers.early_stopping import EarlyStopping
 
 class ExperimentRunner:
     def __init__(self, model: Model, datamanager: MNISTDatasetManager, config: dict):
@@ -66,10 +67,14 @@ class ExperimentRunner:
             self.config['model']['optimizer']['name'],
             self.config['model']['optimizer']['params']
         )
+
+        early_stopping = EarlyStopping(verbose=True) if self.config['model']['early_stopping'] else None
+
         self.model.compile(
             optimizer = optimizer,
             loss = self.config['loss_fn'],
-            metrics = self.config['model']['metrics']
+            metrics = self.config['model']['metrics'],
+            early_stopping = early_stopping,
         )
 
     def run(self) -> None:

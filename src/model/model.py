@@ -7,6 +7,7 @@ import pickle
 from data.mnist_data import MNISTDatasetManager
 from optimizers.schedulers import Scheduler
 from optimizers.optimizer import Optimizer
+from optimizers.early_stopping import EarlyStopping
 from optimizers.optimizer_factory import OptimizerFactory
 from layers.layer import Layer
 from layers.dense import Dense
@@ -47,6 +48,7 @@ class Model:
         optimizer: str | Optimizer = 'sgd',
         loss: str | Loss = 'cross-entropy-loss',
         metrics = None,
+        early_stopping = None
     ) -> None:
         """Configures the model for training.
 
@@ -57,7 +59,6 @@ class Model:
             - optimizer (Optimizer): The optimization algorithm to be used to update the model's parameters (default = 'sgd').
             - `loss_fn` (`str` | `Loss`): The loss function to be used to calculate the predictive error of the model (default = 'cross-entropy-loss').
         """
-        # Optimizer
         if isinstance(optimizer, Optimizer):
             self.optimizer = optimizer
         else:
@@ -75,6 +76,9 @@ class Model:
         # Metrics
         if metrics is not None and isinstance(metrics, (str, list, tuple)):
             self.metrics = MetricManager(metrics)
+
+        if early_stopping is not None and isinstance(early_stopping, EarlyStopping):
+            self.early_stopping = early_stopping
 
         self.is_compiled = True
         return None
@@ -173,6 +177,7 @@ class Model:
         self.epochs = epochs - start_epoch
         self.datamanager = datamanager
         self.scheduler = scheduler
+        self.trainig_on = True
         val_loss = [0.0]
 
         if not self.is_compiled:
@@ -235,6 +240,10 @@ class Model:
 
                 # Monitoring Metrics
                 t.refresh()
+                if self.early_stopping and datamanager.validation_data:
+                    self.trainig_on = self.early_stopping(epoch, val_loss)
+                    print(f"Early Stopping triggered at epoch {epoch}")
+                    break
 
         return {
             'training_metrics': self.metrics.results['training'],
