@@ -252,9 +252,10 @@ class Model:
                 # Monitoring Metrics
                 t.refresh()
                 if self.early_stopping and datamanager.validation_data:
-                    self.trainig_on = self.early_stopping(epoch, val_loss)
-                    print(f"Early Stopping triggered at epoch {epoch}")
-                    break
+                    if self.early_stopping(val_loss):
+                        self.trainig_on = False
+                        print(f"Early Stopping triggered at epoch {epoch}")
+                        break
 
         return {
             'training_metrics': self.training_metrics,
