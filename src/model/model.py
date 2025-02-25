@@ -15,8 +15,7 @@ from losses.losses import Loss, LOSS_FN
 from metrics.metrics import Metric, MetricManager, METRICS
 
 class Model:
-    """Model base class.
-    """
+    """Model base class."""
     def __init__(self, name: str = None):
         self.layers: list[Layer] = []
         self.training_metrics = {}
@@ -48,8 +47,8 @@ class Model:
         self,
         optimizer: str | Optimizer = 'sgd',
         loss: str | Loss = 'cross-entropy-loss',
-        metrics = None,
-        early_stopping = None,
+        metrics: list[str] | list[Metric] = None,
+        early_stopping: EarlyStopping = None,
     ) -> None:
         """Configures the model for training.
 
@@ -57,8 +56,10 @@ class Model:
         any necessary optimization-related parameters for trainable layers.
 
         #### Args:
-            - optimizer (Optimizer): The optimization algorithm to be used to update the model's parameters (default = 'sgd').
-            - `loss_fn` (`str` | `Loss`): The loss function to be used to calculate the predictive error of the model (default = 'cross-entropy-loss').
+            - optimizer (`str` | `Optimizer`): The optimization algorithm to be used to update the model's parameters (default = 'sgd').
+            - loss (`str` | `Loss`): The loss function to be used to calculate the predictive error of the model (default = 'cross-entropy-loss').
+            - metrics (`str` | `Loss`): The metrics to be used to compute the performance of the model.
+            - early_stopping (`EarlyStopping`): The early stopping configuration required to stop training.
         """
         if isinstance(optimizer, Optimizer):
             self.optimizer = optimizer
@@ -68,13 +69,12 @@ class Model:
         for layer in self.layers:
             if layer.trainable_params is not None:
                 self.optimizer.init_params(layer.trainable_params)
-        # Loss
+
         if isinstance(loss, Loss):
             self.loss_fn = loss
         else:
             self.loss_fn: Loss = LOSS_FN[loss]()
 
-        # Metrics
         if metrics is not None and isinstance(metrics, (str, list, tuple)):
             self.metrics = MetricManager(metrics)
             for metric in self.metrics.metrics:
@@ -161,7 +161,13 @@ class Model:
                 layer.update(self.learning_rate, computed_gradients)
         return None
 
-    def train(self, datamanager: MNISTDatasetManager, scheduler: Scheduler, epochs: int, start_epoch: int = 0, checkpoint: list = None) -> dict:
+    def train(self,
+        datamanager: MNISTDatasetManager,
+        scheduler: Scheduler,
+        epochs: int,
+        start_epoch: int = 0,
+        checkpoint: list = None
+    ) -> dict:
         """Trains the MLP on the training data.
 
         Performs forward and backward passes at a given learning rate, and over a number of epochs.
@@ -205,14 +211,12 @@ class Model:
 
                     # Forward Pass
                     y_hat = self.forward(X_batch)
-
                     # Calculate error in prediction
                     loss = self.loss_fn.forward(y_hat, y_batch)
                     # Calculate gradient w.r.t loss
                     grad = self.loss_fn.backward(y_hat, y_batch)
                     # Backpropagation Pass: Calculate Gradients, Weights & Bias
                     self.backward(grad)
-
                     # Gradient Descent: Update Learning Parameters
                     self.update()
 
@@ -256,7 +260,6 @@ class Model:
                         self.trainig_on = False
                         print(f"Early Stopping triggered at epoch {epoch}")
                         break
-
         return {
             'training_metrics': self.training_metrics,
             'training_losses': self.training_losses,
@@ -266,13 +269,11 @@ class Model:
 
     def evaluate(self):
         losses = []
-
         for X_batch, y_batch in self.datamanager:
             y_hat_batch = self.forward(X_batch, is_training=False)
             self.metrics.compute(y_hat_batch, y_batch, self.datamanager.mode)
             loss = self.loss_fn.forward(y_hat_batch, y_batch)
             losses.append(loss)
-
         return self.metrics.results[self.datamanager.mode], losses
 
     def predict(self):
@@ -294,12 +295,10 @@ class Model:
 
         np.random.set_state(nn_model.random_state)
         self.layers = nn_model.layers
-
         self.training_metrics = nn_model.training_metrics
         self.training_losses = nn_model.training_losses
         self.validation_metrics = nn_model.validation_metrics
         self.validation_losses = nn_model.validation_losses
-
         self.scheduler = nn_model.scheduler
         self.datamanager = nn_model.datamanager
         self.epochs = nn_model.epochs
@@ -321,10 +320,8 @@ class Model:
 
         if not os.path.exists(directory):
             os.makedirs(directory)
-
         if not os.path.exists(modelpath):
             os.makedirs(modelpath)
-
         with open(filepath, 'wb') as f:
             pickle.dump(self, f)
         f.close()
