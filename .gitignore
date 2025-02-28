@@ -2,6 +2,7 @@
 /data/
 /plots/
 /results/
+/logs/
 
 # Commit msg
 commit-message.txt

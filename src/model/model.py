@@ -14,6 +14,10 @@ from layers.dense import Dense
 from losses.losses import Loss, LOSS_FN
 from metrics.metrics import Metric, MetricManager, METRICS
 
+from utils.global_logger import Logger
+
+logger = Logger()
+
 class Model:
     """Model base class."""
     def __init__(self, name: str = None):
@@ -30,6 +34,7 @@ class Model:
         self.optimizer = None
         self.metrics: MetricManager = None
         self.early_stopping = None
+
 
     def add(self, layer: Layer):
         """Adds a layer to the model's architecture
@@ -255,6 +260,7 @@ class Model:
 
                 # Monitoring Metrics
                 t.refresh()
+                logger.logger.info(f"Epoch: {epoch+1}, tLoss: {loss:.4f}, vLoss: {val_loss:.4f}")
                 if self.early_stopping and datamanager.validation_data:
                     if self.early_stopping(val_loss):
                         self.trainig_on = False
