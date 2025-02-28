@@ -14,7 +14,7 @@ from layers.dense import Dense
 from losses.losses import Loss, LOSS_FN
 from metrics.metrics import Metric, MetricManager, METRICS
 
-from utils.global_logger import Logger
+from utils.logger import Logger
 
 logger = Logger()
 

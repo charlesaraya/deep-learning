@@ -4,7 +4,7 @@ from src.experiments.experiment_runner import ExperimentRunner
 from src.data.mnist_data import MNISTDatasetManager
 from model.model import Model
 from src.experiments.config import load_config, get_cfg_defaults
-from utils.global_logger import Logger
+from utils.logger import Logger
 
 def main():
 
