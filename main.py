@@ -9,8 +9,8 @@ from utils.global_logger import Logger
 def main():
 
     logger = Logger()
-    logger = logger.setup_daily_logger(console=True)
-    logger.info("Starting program...")
+    logger = logger.setup_logger(console=True)
+    logger.info("Starting program.")
 
     # Load default configuration
     config = get_cfg_defaults()
@@ -27,7 +27,7 @@ def main():
             # Prep and run experiment
             logger.info(f"Starting Experiment: {file_name}, {config['model']['name']}")
             experiment = ExperimentRunner(Model, MNISTDatasetManager, config)
-            logger.info(f"Running Experiment: {file_name}, {config['model']['name']}")
+            logger.info(f"Running Experiment.")
             experiment.run()
 
     logger.info(f"Program finalized.")
